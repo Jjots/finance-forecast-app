@@ -1,0 +1,28 @@
+@startuml
+!include <C4/C4_Container>
+
+LAYOUT_WITH_LEGEND()
+
+title Диаграмма контейнеров backend ИС "Финансовый прогноз"
+
+Container(web_app, "Веб-приложение", "React + TypeScript", "Клиент аналитика, риск-менеджера и администратора.")
+Container(mobile_app, "Мобильное приложение", "React Native", "Клиент инвестора.")
+Container(queue, "Брокер сообщений", "RabbitMQ", "Асинхронные задачи: загрузка данных, запуск ML-задач.")
+
+System_Boundary(backend_boundary, "Backend") {
+    Container(backend, "Backend", "Python + FastAPI", "Бизнес-логика, нормализация данных, оркестрация.")
+}
+
+Container(ml_service, "ML-сервис", "Python + scikit-learn / XGBoost", "Обучение моделей (XGBoost, ARIMA) и инференс прогнозов.")
+ContainerDb(db_main, "Основная БД", "PostgreSQL", "Пользователи, компании, настройки, метаданные моделей.")
+ContainerDb(dwh, "Хранилище временных рядов", "TimescaleDB", "Исторические финансовые показатели, котировки, макроэкономика.")
+
+Rel(web_app, backend, "Запросы", "HTTPS/JSON")
+Rel(mobile_app, backend, "Запросы", "HTTPS/JSON")
+Rel(queue, backend, "Передача задач загрузки данных", "AMQP")
+Rel(backend, queue, "Публикация задач", "AMQP")
+Rel(backend, ml_service, "Запрос прогноза", "REST/gRPC")
+Rel(backend, db_main, "Чтение/запись", "SQL/TCP")
+Rel(backend, dwh, "Аналитические запросы", "SQL/TCP")
+
+@enduml

@@ -1,0 +1,25 @@
+@startuml
+!include <C4/C4_Context>
+
+LAYOUT_WITH_LEGEND()
+
+title Диаграмма системного контекста backend ИС "Финансовый прогноз"
+
+Person(analyst, "Аналитик", "Финансовый специалист. Ищет компании, строит прогнозы, экспортирует отчёты.")
+Person(investor, "Инвестор", "Просматривает прогнозы, сравнивает компании, получает рекомендации.")
+Person(risk_manager, "Риск-менеджер", "Оценивает волатильность, проверяет качество моделей.")
+Person(admin, "Администратор", "Управляет пользователями, загружает данные, запускает переобучение.")
+
+System(web_app, "Веб-приложение", "Точка входа в backend для аналитика, риск-менеджера и администратора.")
+System(mobile_app, "Мобильное приложение", "Точка входа в backend для инвестора.")
+
+System(api_backend, "Backend API", "Серверная часть ИС: API для клиентов, бизнес-логика, нормализация данных, оркестрация.")
+
+Rel(analyst, web_app, "Использует", "HTTPS")
+Rel(risk_manager, web_app, "Использует", "HTTPS")
+Rel(admin, web_app, "Управляет системой", "HTTPS")
+Rel(investor, mobile_app, "Использует", "HTTPS")
+Rel(web_app, api_backend, "Запросы", "HTTPS/JSON")
+Rel(mobile_app, api_backend, "Запросы", "HTTPS/JSON")
+
+@enduml
