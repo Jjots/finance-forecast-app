@@ -26,7 +26,7 @@
 | ID          | Контейнер                 | Технология                    | Ответственный |
 | mobile_app  | Мобильное приложение      | React Native                  | Катя          |
 | web_app     | Веб-приложение            | React + TypeScript            | Катя          |
-| api_backend | Backend API               | Python + FastAPI              | Диана         |
+| backend     | Backend API               | Python + FastAPI              | Диана         |
 | ml_service  | ML-сервис                 | Python + scikit-learn/XGBoost | Алиса         |
 | db_main     | Основная БД               | PostgreSQL                    | Игорь         |
 | dwh         | Хранилище временных рядов | TimescaleDB                   | Игорь + Даня  |
