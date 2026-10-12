@@ -31,7 +31,7 @@ System_Boundary(finance_system, "Finance Forecast System") {
     ' --- ДИАНА: бэкенд ---
     Container(backend, "Backend", "Python + FastAPI", "Бизнес-логика, нормализация данных, оркестрация.")
 
-    ' --- АЛИСА: ML-сервис ---
+    ' --- КАТЯ: ML-сервис ---
     Container(ml_service, "ML-сервис", "Python + scikit-learn / XGBoost", "Обучение моделей (XGBoost, ARIMA) и инференс прогнозов.")
 
     ' --- ИГОРЬ: хранилища ---
