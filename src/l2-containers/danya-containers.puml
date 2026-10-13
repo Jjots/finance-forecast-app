@@ -1,0 +1,47 @@
+@startuml "Finance Forecast - Danya Container View"
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+title L2. Диаграмма контейнеров ИС "Финансовый прогноз" (Даня: scheduler, queue)
+
+Person(analyst, "Аналитик", "Финансовый специалист. Ищет компании, строит прогнозы.")
+Person(investor, "Инвестор", "Просматривает прогнозы, сравнивает компании.")
+Person(risk_manager, "Риск-менеджер", "Оценивает волатильность, проверяет модели.")
+Person(admin, "Администратор", "Управляет пользователями, загружает данные, запускает переобучение.")
+
+System_Ext(rfsd_dataset, "РСБУ (ИПП)", "Финансовая отчётность российских компаний 2011-2025. Parquet.")
+System_Ext(cbr_api, "ЦБ РФ", "Ключевая ставка, курсы валют, макроэкономика.")
+System_Ext(moex_api, "Московская биржа", "Котировки, индексы, торговая статистика.")
+
+System_Boundary(finance_forecast_system, "Finance Forecast System") {
+    Container(mobile_app, "Мобильное приложение", "React Native", "Интерфейс инвестора: прогнозы, сравнение компаний.")
+    Container(web_app, "Веб-приложение", "React + TypeScript", "Основной интерфейс аналитика, риск-менеджера и админа.")
+    Container(backend, "Backend", "Python + FastAPI", "Бизнес-логика, нормализация данных, оркестрация.")
+    Container(ml_service, "ML-сервис", "Python + scikit-learn / XGBoost", "Обучение моделей (XGBoost, ARIMA) и инференс прогнозов.")
+    ContainerDb(db_main, "Основная БД", "PostgreSQL", "Пользователи, компании, настройки, метаданные моделей.")
+    ContainerDb(dwh, "Хранилище временных рядов", "TimescaleDB", "Исторические финансовые показатели, котировки, макроэкономика.")
+    Container(queue, "Брокер сообщений", "RabbitMQ", "Асинхронные задачи: загрузка данных, запуск ML-задач.")
+    Container(scheduler, "Планировщик", "Airflow / Celery Beat", "Регулярная загрузка данных и переобучение раз в неделю.")
+}
+
+Rel(analyst, web_app, "Использует", "HTTPS")
+Rel(investor, mobile_app, "Использует", "HTTPS")
+Rel(risk_manager, web_app, "Использует", "HTTPS")
+Rel(admin, web_app, "Управляет системой", "HTTPS")
+
+Rel(web_app, backend, "Запросы", "HTTPS/JSON")
+Rel(mobile_app, backend, "Запросы", "HTTPS/JSON")
+
+Rel(backend, ml_service, "Запрос прогноза", "REST/gRPC")
+Rel(backend, db_main, "Чтение / запись", "SQL/TCP")
+Rel(backend, dwh, "Аналитические запросы", "SQL/TCP")
+Rel(ml_service, dwh, "Загрузка данных для обучения", "SQL/TCP")
+
+Rel(scheduler, rfsd_dataset, "Загрузка датасета", "HTTPS/File")
+Rel(scheduler, cbr_api, "Загрузка макроэкономики", "REST/HTTPS")
+Rel(scheduler, moex_api, "Загрузка котировок", "REST/HTTPS")
+Rel(scheduler, backend, "Передача загруженных данных и статусов", "HTTPS/JSON")
+Rel(scheduler, queue, "Публикация задач на переобучение", "AMQP")
+Rel(queue, ml_service, "Передача задач на переобучение", "AMQP")
+
+@enduml
