@@ -4,10 +4,9 @@ LAYOUT_WITH_LEGEND()
 title Диаграмма компонентов mobile_app ИС "Финансовый прогноз" (Катя)
 
 ' ============================================================
-' ВНЕШНИЕ КОНТЕЙНЕРЫ И СИСТЕМЫ
+' ВНЕШНИЕ КОНТЕЙНЕРЫ
 ' ============================================================
 Container_Ext(backend, "Backend", "Python + FastAPI", "Бизнес-логика, REST API. Стыковочные компоненты: auth_comp (аутентификация), forecast_comp (прогнозы), data_comp (данные), analytics_comp (аналитика).")
-System_Ext(push_service, "Push-сервис", "FCM / APNs", "Доставка push-уведомлений инвестору о новых прогнозах и рекомендациях.")
 
 ' ============================================================
 ' MOBILE_APP: КОМПОНЕНТЫ
@@ -19,24 +18,21 @@ Container_Boundary(mobile_app, "mobile_app (React Native)") {
         Component(mob_feed_screen, "Экран ленты прогнозов", "React Native", "Лента компаний с прогнозами: карточки с названием, отраслью, краткосрочным прогнозом и индикатором тренда. Поддерживает сортировку (по дате, доходности, риску) и фильтры по отрасли. Pull-to-refresh для обновления.")
         Component(mob_company_screen, "Экран карточки компании", "React Native", "Детальная информация о компании: финансовые показатели, график прогноза, метрики качества модели (MAE, RMSE), рекомендация (покупать/держать/продавать). Кнопка добавления в избранное.")
         Component(mob_compare_screen, "Экран сравнения", "React Native", "Сравнение 2-3 компаний по ключевым метрикам: доходность, волатильность, прогноз. Графики и таблицы для наглядного сравнения. Возможность поделиться результатом.")
-        Component(mob_notifications_screen, "Экран уведомлений", "React Native", "Список push-уведомлений: новые прогнозы, изменения рекомендаций, важные события по избранным компаниям. Отметка прочитанных, очистка истории.")
     }
 
     Boundary(ctrl_layer, "Слой контроллеров (Application)") {
         Component(mob_auth_controller, "Контроллер аутентификации", "TypeScript", "Обработка входа/выхода инвестора. Вызывает mob_auth_service, сохраняет сессию, обрабатывает ошибки аутентификации (неверный пароль, истёкший токен).")
         Component(mob_feed_controller, "Контроллер ленты", "TypeScript", "Обработка запросов ленты, карточек компаний и сравнения. Валидирует параметры, вызывает mob_forecast_service. При отсутствии сети отдаёт данные из кэша.")
-        Component(mob_notification_controller, "Контроллер уведомлений", "TypeScript", "Обработка входящих push-уведомлений от mob_push_service. Маршрутизация по экранам (например, тап по уведомлению → карточка компании). Сохранение уведомлений в кэш.")
     }
 
     Boundary(service_layer, "Слой сервисов (Domain)") {
         Component(mob_auth_service, "Сервис аутентификации", "TypeScript", "Логика аутентификации: запрос к backend (auth_comp), получение JWT, сохранение в офлайн-кэше. Автоматическое обновление токена при истечении (refresh token).")
         Component(mob_forecast_service, "Сервис прогнозов", "TypeScript", "Логика работы с прогнозами: запрос к backend (forecast_comp), кэширование для офлайн-режима (TTL 30 минут), форматирование данных для графиков. При отсутствии сети возвращает последние кэшированные данные.")
-        Component(mob_push_service, "Сервис push", "React Native Firebase", "Регистрация FCM-токена на backend, обработка входящих уведомлений от push_service. Фильтрация по настройкам пользователя (только избранные компании, только важные события).")
     }
 
     Boundary(data_layer, "Слой доступа к данным (Data)") {
         Component(mob_api_repository, "Репозиторий API", "Axios", "Обёртка над REST API backend. Добавляет JWT в заголовки, обрабатывает ошибки (401 → logout, 500 → retry), таймауты (15 сек с учётом мобильной сети).")
-        Component(mob_cache_repository, "Репозиторий кэша", "AsyncStorage / SQLite", "Офлайн-кэш прогнозов, избранных компаний, уведомлений. AsyncStorage — для настроек и сессии, SQLite — для прогнозов и истории. Позволяет работать без интернета.")
+        Component(mob_cache_repository, "Репозиторий кэша", "AsyncStorage / SQLite", "Офлайн-кэш прогнозов, избранных компаний. AsyncStorage — для настроек и сессии, SQLite — для прогнозов и истории. Позволяет работать без интернета.")
     }
 }
 
@@ -47,14 +43,12 @@ Rel(mob_auth_screen, mob_auth_controller, "Вызывает действия в�
 Rel(mob_feed_screen, mob_feed_controller, "Запрашивает ленту прогнозов", "JS call")
 Rel(mob_company_screen, mob_feed_controller, "Запрашивает карточку компании", "JS call")
 Rel(mob_compare_screen, mob_feed_controller, "Запрашивает сравнение компаний", "JS call")
-Rel(mob_notifications_screen, mob_notification_controller, "Читает уведомления", "JS call")
 
 ' ============================================================
 ' КОНТРОЛЛЕРЫ -> СЕРВИСЫ
 ' ============================================================
 Rel(mob_auth_controller, mob_auth_service, "Делегирует аутентификацию", "JS call")
 Rel(mob_feed_controller, mob_forecast_service, "Делегирует логику прогнозов", "JS call")
-Rel(mob_notification_controller, mob_push_service, "Делегирует обработку push", "JS call")
 
 ' ============================================================
 ' СЕРВИСЫ -> РЕПОЗИТОРИИ
@@ -63,12 +57,10 @@ Rel(mob_auth_service, mob_api_repository, "Запрашивает аутенти
 Rel(mob_forecast_service, mob_api_repository, "Запрашивает прогнозы (forecast_comp)", "JS call")
 Rel(mob_forecast_service, mob_cache_repository, "Кэширует прогнозы", "JS call")
 Rel(mob_auth_service, mob_cache_repository, "Сохраняет сессию и JWT", "JS call")
-Rel(mob_push_service, mob_cache_repository, "Сохраняет уведомления", "JS call")
 
 ' ============================================================
 ' РЕПОЗИТОРИИ -> ВНЕШНИЕ КОНТЕЙНЕРЫ
 ' ============================================================
 Rel(mob_api_repository, backend, "REST-запросы: auth_comp, forecast_comp, data_comp, analytics_comp", "HTTPS/JSON")
-Rel(mob_push_service, push_service, "Регистрирует токен, получает уведомления", "HTTPS/JSON")
 
 @enduml
