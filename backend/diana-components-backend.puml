@@ -1,0 +1,75 @@
+@startuml
+!include <C4/C4_Component>
+
+LAYOUT_WITH_LEGEND()
+
+title Диаграмма компонентов Backend ИС "Финансовый прогноз"
+
+' ВНЕШНИЕ КОНТЕЙНЕРЫ
+
+Container(web_app, "Веб-приложение", "React + TypeScript", "Аналитик, риск-менеджер, администратор.")
+Container(mobile_app, "Мобильное приложение", "React Native", "Инвестор.")
+Container(ml_service, "ML-сервис", "Python + scikit-learn / XGBoost", "Обучение моделей (XGBoost, ARIMA) и инференс прогнозов.")
+ContainerDb(db_main, "Основная БД", "PostgreSQL", "Пользователи, компании, настройки, метаданные моделей.")
+ContainerDb(dwh, "Хранилище временных рядов", "TimescaleDB", "Финансовые показатели, котировки, макроэкономика.")
+
+' BACKEND: КОМПОНЕНТЫ
+
+Container_Boundary(api_backend, "Backend API (Python + FastAPI)") {
+
+    Boundary(app_layer, "Прикладной слой (FastAPI-роутеры + сервисы)") {
+        Component(auth_comp, "Аутентификация", "FastAPI, JWT, RBAC", "Вход, выдача и проверка токенов, роли (analyst, investor, risk_manager, admin), управление пользователями. Проверка токена и роли — зависимость всех остальных роутеров.")
+        Component(forecast_comp, "Прогнозы", "FastAPI router + service", "Запрос прогноза по компании и показателю, история и кэш прогнозов. При недоступности ML-сервиса отдаёт последний сохранённый прогноз.")
+        Component(companies_comp, "Компании", "FastAPI router + service", "Поиск компаний, карточка, сравнение показателей нескольких компаний.")
+        Component(analytics_comp, "Аналитика", "FastAPI router + service", "Волатильность, рекомендации, экспорт отчётов.")
+        Component(model_mgmt_comp, "Управление моделями", "FastAPI router + service", "Метаданные моделей, качество (MAE, RMSE, MAPE), ручной запуск переобучения через ML-сервис.")
+        Component(data_comp, "Данные", "FastAPI router + service", "Загрузка файла данных администратором вручную, валидация и нормализация к единой схеме (единицы, периодичность, пропуски), приведение показателей из dwh к единому виду для ответов. Запись в dwh идемпотентна (upsert), повторная загрузка не дублирует данные.")
+    }
+
+    Boundary(infra_layer, "Инфраструктурный слой (адаптеры)") {
+        Component(ml_client_comp, "ML-клиент", "httpx / gRPC stub", "Вызовы ML-сервиса (прогноз, метрики, запуск переобучения): таймауты, повторы, circuit breaker, преобразование ответов.")
+        Component(db_repo_comp, "Репозитории основной БД", "SQLAlchemy", "Доступ к пользователям, компаниям, настройкам, метаданным моделей. Транзакции на уровне запроса.")
+        Component(ts_repo_comp, "Репозиторий временных рядов", "SQLAlchemy / asyncpg", "Запись (upsert) и аналитические запросы к рядам в TimescaleDB.")
+    }
+}
+
+' КЛИЕНТЫ -> КОМПОНЕНТЫ
+
+Rel(web_app, auth_comp, "Вход, управление пользователями", "HTTPS/JSON")
+Rel(mobile_app, auth_comp, "Вход", "HTTPS/JSON")
+Rel(web_app, forecast_comp, "Запрос прогноза", "HTTPS/JSON")
+Rel(mobile_app, forecast_comp, "Запрос прогноза", "HTTPS/JSON")
+Rel(web_app, companies_comp, "Поиск и сравнение компаний", "HTTPS/JSON")
+Rel(mobile_app, companies_comp, "Поиск и сравнение компаний", "HTTPS/JSON")
+Rel(web_app, analytics_comp, "Волатильность, отчёты", "HTTPS/JSON")
+Rel(web_app, model_mgmt_comp, "Качество моделей, запуск переобучения", "HTTPS/JSON")
+Rel(web_app, data_comp, "Ручная загрузка данных", "HTTPS/JSON")
+
+' ВНУТРЕННИЕ СВЯЗИ
+
+Rel(auth_comp, db_repo_comp, "Пользователи и роли", "Python call")
+
+Rel(forecast_comp, ml_client_comp, "Запрос прогноза", "Python call")
+Rel(forecast_comp, db_repo_comp, "Кэш и история прогнозов", "Python call")
+Rel(forecast_comp, ts_repo_comp, "Последние значения ряда", "Python call")
+
+Rel(companies_comp, db_repo_comp, "Справочник компаний", "Python call")
+Rel(companies_comp, ts_repo_comp, "Показатели для сравнения", "Python call")
+
+Rel(analytics_comp, ts_repo_comp, "Ряды для расчёта волатильности", "Python call")
+Rel(analytics_comp, db_repo_comp, "Компании и настройки", "Python call")
+Rel(analytics_comp, forecast_comp, "Прогнозы для рекомендаций и отчётов", "Python call")
+
+Rel(model_mgmt_comp, ml_client_comp, "Метрики качества, запуск переобучения", "Python call")
+Rel(model_mgmt_comp, db_repo_comp, "Метаданные моделей", "Python call")
+
+Rel(data_comp, ts_repo_comp, "Запись нормализованных данных", "Python call")
+Rel(data_comp, db_repo_comp, "Статусы загрузок", "Python call")
+
+' КОМПОНЕНТЫ -> ВНЕШНИЕ КОНТЕЙНЕРЫ
+
+Rel(ml_client_comp, ml_service, "Прогноз, метрики качества, запуск переобучения", "REST/gRPC")
+Rel(db_repo_comp, db_main, "Чтение/запись", "SQL/TCP")
+Rel(ts_repo_comp, dwh, "Запись и аналитические запросы", "SQL/TCP")
+
+@enduml

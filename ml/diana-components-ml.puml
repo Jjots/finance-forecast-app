@@ -1,0 +1,65 @@
+@startuml
+!include <C4/C4_Component>
+
+LAYOUT_WITH_LEGEND()
+
+title Диаграмма компонентов ML-сервиса ИС "Финансовый прогноз"
+
+
+' ВНЕШНИЕ КОНТЕЙНЕРЫ
+
+Container(api_backend, "Backend API", "Python + FastAPI", "Запрашивает прогнозы, метрики качества; вручную запускает переобучение.")
+Container(queue, "Брокер сообщений", "RabbitMQ", "Задачи на переобучение (публикует scheduler).")
+ContainerDb(dwh, "Хранилище временных рядов", "TimescaleDB", "Исторические показатели, котировки, макроэкономика.")
+
+' ML-СЕРВИС: КОМПОНЕНТЫ
+
+Container_Boundary(ml_service, "ML-сервис (Python + scikit-learn / XGBoost)") {
+
+    Boundary(entry_layer, "Входной слой") {
+        Component(api_comp, "ML API", "FastAPI / gRPC", "Приём запросов от backend: прогноз, метрики качества, ручной запуск переобучения. Валидация входных данных.")
+        Component(task_consumer_comp, "Потребитель задач", "aio-pika (AMQP)", "Приём задач на переобучение из очереди. Подтверждает сообщение после завершения; повторная задача с тем же job_id не запускает обучение заново.")
+    }
+
+    Boundary(model_layer, "Model-слой") {
+        Component(training_comp, "Training Component", "XGBoost, statsmodels (ARIMA)", "Обучение и подбор параметров моделей XGBoost и ARIMA, выбор лучшей модели.")
+        Component(inference_comp, "Inference Component", "XGBoost, statsmodels (ARIMA)", "Построение прогноза активной моделью по запросу.")
+        Component(metrics_comp, "Metrics Component", "scikit-learn", "Оценка качества на отложенной выборке (по времени, без утечки будущего): MAE, RMSE, MAPE.")
+        Component(model_registry_comp, "Реестр моделей", "joblib, файловое хранилище", "Хранение версий обученных моделей и их метрик, активная версия. Новая версия становится активной, только если не хуже текущей по метрикам.")
+    }
+
+    Boundary(data_layer, "Data-слой") {
+        Component(feature_engineer_comp, "Feature Engineer", "pandas", "Построение признаков: лаги, скользящие средние, темпы роста, макро- и рыночные признаки.")
+        Component(normalizer_comp, "Normalizer", "pandas, scikit-learn", "Приведение к единой схеме: единицы и периодичность, пропуски, выбросы, масштабирование.")
+        Component(data_loader_comp, "Data Loader", "SQLAlchemy / asyncpg", "Чтение обучающих и актуальных рядов из dwh.")
+    }
+}
+
+' ВХОД
+
+Rel(api_backend, api_comp, "Запрос прогноза, метрик качества, запуск переобучения", "REST/gRPC")
+Rel(queue, task_consumer_comp, "Задача на переобучение", "AMQP")
+
+Rel(api_comp, inference_comp, "Построить прогноз", "Python call")
+Rel(api_comp, metrics_comp, "Получить метрики качества", "Python call")
+Rel(api_comp, training_comp, "Ручной запуск обучения", "Python call")
+Rel(task_consumer_comp, training_comp, "Запустить обучение", "Python call")
+
+' MODEL-СЛОЙ
+
+Rel(training_comp, feature_engineer_comp, "Запрос обучающей выборки", "Python call")
+Rel(training_comp, metrics_comp, "Оценка качества модели", "Python call")
+Rel(training_comp, model_registry_comp, "Сохранение модели и версии", "Python call")
+
+Rel(inference_comp, feature_engineer_comp, "Запрос признаков для прогноза", "Python call")
+Rel(inference_comp, model_registry_comp, "Загрузка активной модели", "Python call")
+
+Rel(metrics_comp, model_registry_comp, "Запись и чтение метрик версий", "Python call")
+
+' DATA-СЛОЙ
+
+Rel(feature_engineer_comp, normalizer_comp, "Запрос нормализованных рядов", "Python call")
+Rel(normalizer_comp, data_loader_comp, "Запрос сырых рядов", "Python call")
+Rel(data_loader_comp, dwh, "Загрузка данных для обучения и прогноза", "SQL/TCP")
+
+@enduml
