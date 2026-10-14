@@ -1,0 +1,28 @@
+@startuml "Finance Forecast - Igor L3 PostgreSQL"
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+title L3 — Компоненты основной БД db_main (PostgreSQL)
+
+Container(backend, "Backend", "Python + FastAPI", "Выполняет SQL-запросы к прикладным данным.")
+
+' Внутренние ID ниже — предложение; необходимо согласовать по docs/glossary.md ДО PR.
+Container_Boundary(db_main, "db_main — PostgreSQL: SQL-схемы, функции и ограничения") {
+    Component(db_access_comp, "SQL API / Views", "PostgreSQL SQL", "Единые представления и функции доступа.")
+    Component(db_users_comp, "Users & Roles", "SQL tables/functions", "Профили, статусы пользователей, роли.")
+    Component(db_companies_comp, "Company Catalog", "SQL tables/functions", "Каталог компаний и их идентификаторы.")
+    Component(db_settings_comp, "User Settings", "SQL tables/functions", "Настройки и предпочтения пользователей.")
+    Component(db_models_comp, "Model Registry", "SQL tables/functions", "Метаданные версий обученных моделей.")
+    Component(db_integrity_comp, "Integrity Rules", "SQL constraints/triggers", "PK, FK, CHECK и уникальность записей.")
+}
+
+Rel(backend, db_access_comp, "Читает и изменяет бизнес-данные", "SQL/TCP")
+Rel(db_access_comp, db_users_comp, "Операции с пользователями", "SQL Function Call")
+Rel(db_access_comp, db_companies_comp, "Читает каталог организаций", "SQL Function Call")
+Rel(db_access_comp, db_settings_comp, "Операции с настройками", "SQL Function Call")
+Rel(db_access_comp, db_models_comp, "Операции с метаданными моделей", "SQL Function Call")
+Rel(db_users_comp, db_integrity_comp, "Проверяет ключи и ограничения", "SQL/Trigger")
+Rel(db_companies_comp, db_integrity_comp, "Проверяет уникальность ИНН", "SQL/Constraint")
+Rel(db_settings_comp, db_users_comp, "Связывает настройки с пользователем", "SQL/FK")
+Rel(db_models_comp, db_companies_comp, "Связывает модель с областью применения", "SQL/FK")
+@enduml

@@ -1,0 +1,30 @@
+@startuml "Finance Forecast - Igor L3 TimescaleDB"
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+title L3 — Компоненты хранилища dwh (TimescaleDB)
+
+Container(backend, "Backend", "Python + FastAPI", "Аналитические запросы.")
+Container(ml_service, "ML-сервис", "Python + ML", "Чтение признаков и рядов; согласуемая запись данных.")
+
+' Внутренние ID ниже — предложение; необходимо согласовать по docs/glossary.md ДО PR.
+Container_Boundary(dwh, "dwh — TimescaleDB: логические SQL-модули") {
+    Component(dwh_access_comp, "Query / SQL API", "PostgreSQL SQL", "Интерфейс запросов и загрузки в БД.")
+    Component(dwh_stage_comp, "Staging", "SQL staging tables", "Получает уже разобранные записи источников.")
+    Component(dwh_mapping_comp, "Canonical Mapping", "SQL functions", "Коды, даты, единицы и идентификаторы.")
+    Component(dwh_quality_comp, "Quality Checks", "SQL constraints/functions", "Проверка типов, пропусков и дублей.")
+    Component(dwh_facts_comp, "Time-series Facts", "TimescaleDB hypertables", "Хранит показатели и котировки по времени.")
+    Component(dwh_marts_comp, "Analytical Views", "SQL / continuous aggregates", "Готовит выборки для аналитики и ML.")
+    Component(dwh_lineage_comp, "Source Lineage", "SQL tables/functions", "Фиксирует источник, время и версию загрузки.")
+}
+
+Rel(backend, dwh_access_comp, "Аналитические SQL-запросы", "SQL/TCP")
+Rel(ml_service, dwh_access_comp, "Читает ряды; возможна загрузка нормализованных строк", "SQL/TCP")
+Rel(dwh_access_comp, dwh_stage_comp, "Помещает подготовленные записи", "SQL Function Call")
+Rel(dwh_stage_comp, dwh_mapping_comp, "Передает поля на приведение", "SQL Function Call")
+Rel(dwh_mapping_comp, dwh_quality_comp, "Валидирует значения и ключи", "SQL Function Call")
+Rel(dwh_quality_comp, dwh_facts_comp, "Записывает проверенные ряды", "SQL Function Call")
+Rel(dwh_quality_comp, dwh_lineage_comp, "Сохраняет происхождение загрузки", "SQL Function Call")
+Rel(dwh_access_comp, dwh_marts_comp, "Выбирает агрегированные показатели", "SQL Function Call")
+Rel(dwh_marts_comp, dwh_facts_comp, "Читает и агрегирует исходные ряды", "SQL/Query")
+@enduml

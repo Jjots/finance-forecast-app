@@ -1,0 +1,26 @@
+@startuml "Finance Forecast - Igor L1 Context"
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+title L1 — Контекст ИС «Финансовый прогноз»: фокус на использовании данных
+
+' L1 отображает систему как единое целое; db_main и dwh здесь не раскрываются.
+Person(analyst, "Аналитик", "Работает с историческими показателями и прогнозами компаний.")
+Person(investor, "Инвестор", "Сравнивает компании и изучает прогнозы.")
+Person(risk_manager, "Риск-менеджер", "Исследует риски и качество прогнозирования.")
+Person(admin, "Администратор", "Контролирует загрузки и параметры системы.")
+
+System(finance_forecast_system, "Finance Forecast System", "Анализ, хранение и прогнозирование финансовых показателей российских компаний.")
+
+System_Ext(rfsd_dataset, "РСБУ (ИПП)", "Историческая отчетность, Parquet.")
+System_Ext(cbr_api, "Банк России", "Курсы и макроэкономические показатели.")
+System_Ext(moex_api, "Московская биржа", "Котировки, индексы и торговые данные.")
+
+Rel(analyst, finance_forecast_system, "Запрашивает историю, сравнение и прогнозы", "HTTPS")
+Rel(investor, finance_forecast_system, "Просматривает прогнозы компаний", "HTTPS")
+Rel(risk_manager, finance_forecast_system, "Анализирует показатели и риски", "HTTPS")
+Rel(admin, finance_forecast_system, "Инициирует загрузки и администрирование", "HTTPS")
+Rel(finance_forecast_system, rfsd_dataset, "Получает исходную финансовую отчетность", "HTTPS/File")
+Rel(finance_forecast_system, cbr_api, "Получает макроэкономические данные", "REST/HTTPS")
+Rel(finance_forecast_system, moex_api, "Получает биржевые данные", "REST/HTTPS")
+@enduml
