@@ -1,5 +1,5 @@
 @startuml
-!include <C4/C4_Component>
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
 
 LAYOUT_WITH_LEGEND()
 
@@ -8,9 +8,9 @@ title Диаграмма компонентов ML-сервиса ИС "Фина
 
 ' ВНЕШНИЕ КОНТЕЙНЕРЫ
 
-Container(api_backend, "Backend API", "Python + FastAPI", "Запрашивает прогнозы, метрики качества; вручную запускает переобучение.")
-Container(queue, "Брокер сообщений", "RabbitMQ", "Задачи на переобучение (публикует scheduler).")
-ContainerDb(dwh, "Хранилище временных рядов", "TimescaleDB", "Исторические показатели, котировки, макроэкономика.")
+Container_Ext(api_backend, "Backend API", "Python + FastAPI", "Запрашивает прогнозы, метрики качества; вручную запускает переобучение.")
+Container_Ext(queue, "Брокер сообщений", "RabbitMQ", "Задачи на переобучение (публикует scheduler).")
+ContainerDb_Ext(dwh, "Хранилище временных рядов", "TimescaleDB", "Исторические показатели, котировки, макроэкономика.")
 
 ' ML-СЕРВИС: КОМПОНЕНТЫ
 

@@ -7,9 +7,9 @@
 | Роль                              | Имя   | Зона ответственности                      |
 |-----------------------------------|-------|-------------------------------------------|
 | Тимлид + Backend + CI/CD          | Алиса | Архитектура, backend, CI/CD               |
-| Бизнес-аналитик + UI/UX + ML      | Катя  | SWOT, SMART, Use-Case, UI, ml_service     |
+| Бизнес-аналитик + UI/UX + ML      | Катя  | SWOT, SMART, Use-Case, UI                 |
 | Системный аналитик + Data         | Игорь | FURPS+, ER, схема dwh                     |
-| Backend-разработчик               | Диана | backend, интеграция с ML                  |
+| Backend-разработчик               | Диана | backend, интеграция с ML, ml_service      |
 | DevOps + QA                       | Даня  | queue, dwh, scheduler, QA                 |
 
 ## Стек

@@ -30,7 +30,7 @@
 | mobile_app  | Мобильное приложение      | React Native                  | Катя          |
 | web_app     | Веб-приложение            | React + TypeScript            | Катя          |
 | backend     | Backend API               | Python + FastAPI              | Диана         |
-| ml_service  | ML-сервис                 | Python + scikit-learn/XGBoost | Катя          |
+| ml_service  | ML-сервис                 | Python + scikit-learn/XGBoost | Диана         |
 | db_main     | Основная БД               | PostgreSQL                    | Игорь         |
 | dwh         | Хранилище временных рядов | TimescaleDB                   | Игорь + Даня  |
 | queue       | Брокер сообщений          | RabbitMQ                      | Даня          |
@@ -38,7 +38,7 @@
 
 ## Стыковочные компоненты ml_service
 
-### Data-слой (Катя)
+### Data-слой (Диана)
 
 | ID                    | Компонент        | Что делает                          |
 |-----------------------|------------------|-------------------------------------|
@@ -46,7 +46,7 @@
 | normalizer_comp       | Normalizer       | Приводит форматы к единой схеме     |
 | feature_engineer_comp | Feature Engineer | Создаёт признаки для моделей        |
 
-### Model-слой (Катя)
+### Model-слой (Диана)
 
 | ID                    | Компонент            | Что делает                          |
 |-----------------------|----------------------|-------------------------------------|
@@ -88,6 +88,27 @@
 | routing_comp       | Routing Component    | Exchange и маршрутизация по routing key                 |
 | work_queue_comp    | Work Queue           | Очередь задач на переобучение ML                        |
 | retry_comp         | Retry Component      | Повторная доставка и dead-letter очередь                |
+
+## Стыковочные компоненты db_main
+
+| ID                 | Компонент       | Что делает                                      |
+|--------------------|-----------------|-------------------------------------------------|
+| db_access_comp     | SQL API / Views | Единые представления и функции доступа          |
+| db_users_comp      | Users & Roles   | Профили, статусы пользователей, роли            |
+| db_companies_comp  | Company Catalog | Каталог компаний и их идентификаторы            |
+| db_settings_comp   | User Settings   | Настройки и предпочтения пользователей          |
+| db_models_comp     | Model Registry  | Метаданные версий обученных моделей             |
+| db_integrity_comp  | Integrity Rules | PK, FK, CHECK и уникальность записей            |
+
+## Стыковочные компоненты dwh
+
+| ID                         | Компонент            | Что делает                                              |
+|----------------------------|----------------------|---------------------------------------------------------|
+| dwh_hypertable_comp        | Hypertable Storage   | Хранение временных рядов с разбивкой по времени         |
+| dwh_ingest_comp            | Ingest Service       | Приём данных от backend и вставка в hypertables         |
+| dwh_query_comp             | Query Service        | Аналитические запросы: агрегации, срезы, поиск по времени |
+| dwh_retention_comp         | Retention Policy     | Политики хранения — удаление и архивация старых данных  |
+| dwh_continuous_agg_comp    | Continuous Aggregates| Материализованные представления для быстрых агрегатов   |
 
 ## Правила
 

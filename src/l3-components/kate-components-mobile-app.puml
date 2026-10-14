@@ -1,7 +1,7 @@
 @startuml
-!include <C4/C4_Component>
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
 LAYOUT_WITH_LEGEND()
-title Диаграмма компонентов mobile_app ИС "Финансовый прогноз" (Катя)
+title Диаграмма компонентов mobile_app ИС "Финансовый прогноз"
 
 ' ============================================================
 ' ВНЕШНИЕ КОНТЕЙНЕРЫ

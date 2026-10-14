@@ -1,5 +1,5 @@
 @startuml
-!include <C4/C4_Component>
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
 
 LAYOUT_WITH_LEGEND()
 
@@ -7,11 +7,11 @@ title Диаграмма компонентов Backend ИС "Финансовы
 
 ' ВНЕШНИЕ КОНТЕЙНЕРЫ
 
-Container(web_app, "Веб-приложение", "React + TypeScript", "Аналитик, риск-менеджер, администратор.")
-Container(mobile_app, "Мобильное приложение", "React Native", "Инвестор.")
-Container(ml_service, "ML-сервис", "Python + scikit-learn / XGBoost", "Обучение моделей (XGBoost, ARIMA) и инференс прогнозов.")
-ContainerDb(db_main, "Основная БД", "PostgreSQL", "Пользователи, компании, настройки, метаданные моделей.")
-ContainerDb(dwh, "Хранилище временных рядов", "TimescaleDB", "Финансовые показатели, котировки, макроэкономика.")
+Container_Ext(web_app, "Веб-приложение", "React + TypeScript", "Аналитик, риск-менеджер, администратор.")
+Container_Ext(mobile_app, "Мобильное приложение", "React Native", "Инвестор.")
+Container_Ext(ml_service, "ML-сервис", "Python + scikit-learn / XGBoost", "Обучение моделей (XGBoost, ARIMA) и инференс прогнозов.")
+ContainerDb_Ext(db_main, "Основная БД", "PostgreSQL", "Пользователи, компании, настройки, метаданные моделей.")
+ContainerDb_Ext(dwh, "Хранилище временных рядов", "TimescaleDB", "Финансовые показатели, котировки, макроэкономика.")
 
 ' BACKEND: КОМПОНЕНТЫ
 
