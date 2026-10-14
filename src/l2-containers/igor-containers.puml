@@ -1,0 +1,36 @@
+@startuml "Finance Forecast - Igor L2 Containers"
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+title L2 — Контейнеры ИС «Финансовый прогноз»: PostgreSQL / TimescaleDB
+
+Person(analyst, "Аналитик", "Запрашивает данные и прогнозы.")
+Person(admin, "Администратор", "Управляет загрузками.")
+
+System_Ext(rfsd_dataset, "РСБУ (ИПП)", "Parquet.")
+System_Ext(cbr_api, "ЦБ РФ", "Макроэкономика.")
+System_Ext(moex_api, "Московская биржа", "Котировки.")
+
+System_Boundary(finance_system, "Finance Forecast System") {
+    Container(web_app, "Веб-приложение", "React + TypeScript", "Пользовательские запросы.")
+    Container(backend, "Backend", "Python + FastAPI", "Обработка запросов и логика системы.")
+    Container(ml_service, "ML-сервис", "Python + scikit-learn / XGBoost", "Читает данные для обучения и прогнозов.")
+    Container(scheduler, "Планировщик", "Airflow / Celery Beat", "Запускает обновления данных.")
+    Container(queue, "Брокер сообщений", "RabbitMQ", "Распределяет фоновые задания.")
+    ContainerDb(db_main, "Основная БД (OLTP)", "PostgreSQL", "Пользователи, компании, настройки, метаданные ML.")
+    ContainerDb(dwh, "Хранилище рядов (аналитика)", "TimescaleDB", "Отчетность, котировки, макропоказатели.")
+}
+
+Rel(analyst, web_app, "Выполняет аналитические запросы", "HTTPS")
+Rel(admin, web_app, "Управляет данными", "HTTPS")
+Rel(web_app, backend, "Запросы к приложению", "HTTPS/JSON")
+Rel(backend, db_main, "Читает и изменяет справочные записи", "SQL/TCP")
+Rel(backend, dwh, "Выполняет аналитические выборки", "SQL/TCP")
+Rel(backend, ml_service, "Запрашивает прогнозы", "REST/gRPC")
+Rel(ml_service, dwh, "Читает временные ряды для моделей", "SQL/TCP")
+Rel(scheduler, rfsd_dataset, "Загружает отчетность", "HTTPS/File")
+Rel(scheduler, cbr_api, "Загружает показатели", "REST/HTTPS")
+Rel(scheduler, moex_api, "Загружает котировки", "REST/HTTPS")
+Rel(scheduler, queue, "Ставит фоновые задания", "AMQP")
+Rel(queue, ml_service, "Передает задания обработки", "AMQP")
+@enduml
