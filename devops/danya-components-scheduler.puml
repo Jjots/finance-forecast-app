@@ -1,0 +1,46 @@
+@startuml "Finance Forecast - Danya Scheduler Components"
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+title Компоненты контейнера scheduler (Airflow / Celery Beat)
+
+System_Ext(rfsd_dataset, "РСБУ (ИПП)", "Финансовая отчётность 2011-2025. Parquet.")
+System_Ext(cbr_api, "ЦБ РФ", "Ключевая ставка, курсы валют.")
+System_Ext(moex_api, "Московская биржа", "Котировки, индексы.")
+
+Container_Boundary(backend, "Backend (Python + FastAPI)") {
+    Component(data_comp, "Данные", "FastAPI", "Приём загруженных батчей и статусов от scheduler.")
+}
+
+Container_Boundary(queue, "Брокер сообщений (RabbitMQ)") {
+    Component(connection_comp, "Connection Component", "AMQP 0-9-1", "Точка входа publisher: соединение и канал.")
+}
+
+Container_Boundary(scheduler, "Планировщик (Python, Airflow / Celery Beat, одно адресное пространство)") {
+    Boundary(orchestration_layer, "Слой оркестрации") {
+        Component(schedule_comp, "Schedule Component", "Airflow DAG / Celery Beat", "Расписание: ежедневная загрузка источников и еженедельное переобучение.")
+    }
+
+    Boundary(domain_layer, "Предметный слой") {
+        Component(ingest_comp, "Ingest Component", "Python", "Сценарий загрузки: порядок источников, частичный отказ, идемпотентность задания.")
+    }
+
+    Boundary(infra_layer, "Инфраструктурный слой") {
+        Component(source_adapter_comp, "Source Adapter", "httpx", "Клиенты внешних систем: Parquet РСБУ, REST ЦБ РФ и MOEX.")
+        Component(backend_client_comp, "Backend Client", "httpx", "HTTP-клиент к data_comp.")
+        Component(broker_publisher_comp, "Broker Publisher", "aio-pika", "AMQP-публикация задачи переобучения.")
+    }
+}
+
+Rel(schedule_comp, ingest_comp, "Запустить загрузку по расписанию", "Python Call")
+Rel(schedule_comp, broker_publisher_comp, "Запустить публикацию задачи переобучения", "Python Call")
+Rel(ingest_comp, source_adapter_comp, "Запросить сырые данные источников", "Python Call")
+Rel(ingest_comp, backend_client_comp, "Передать загруженный батч", "Python Call")
+
+Rel(source_adapter_comp, rfsd_dataset, "Скачать отчётность", "HTTPS/File")
+Rel(source_adapter_comp, cbr_api, "Загрузить макроэкономику", "REST/HTTPS")
+Rel(source_adapter_comp, moex_api, "Загрузить котировки", "REST/HTTPS")
+Rel(backend_client_comp, data_comp, "Передать данные и статус загрузки", "HTTPS/JSON")
+Rel(broker_publisher_comp, connection_comp, "Опубликовать задачу переобучения", "AMQP")
+
+@enduml

@@ -63,6 +63,32 @@
 | data_comp       | Данные          | scheduler, ml_service      |
 | analytics_comp  | Аналитика       | web_app                    |
 
+## Стыковочные компоненты scheduler
+
+### Оркестрация и домен (Даня)
+
+| ID                      | Компонент              | Что делает                                              |
+|-------------------------|------------------------|---------------------------------------------------------|
+| schedule_comp           | Schedule Component     | Расписание DAG: загрузка данных и еженедельное переобучение |
+| ingest_comp             | Ingest Component       | Оркестрация загрузки РСБУ, ЦБ РФ и MOEX                 |
+
+### Инфраструктурный слой (Даня)
+
+| ID                      | Компонент              | Что делает                                              |
+|-------------------------|------------------------|---------------------------------------------------------|
+| source_adapter_comp     | Source Adapter         | HTTPS/REST-клиенты внешних источников                   |
+| backend_client_comp     | Backend Client         | Передача загруженных данных и статусов в data_comp      |
+| broker_publisher_comp   | Broker Publisher       | Публикация задач переобучения в queue по AMQP           |
+
+## Стыковочные компоненты queue
+
+| ID                 | Компонент            | Что делает                                              |
+|--------------------|----------------------|---------------------------------------------------------|
+| connection_comp    | Connection Component | Приём AMQP-соединений и каналов от publisher/consumer   |
+| routing_comp       | Routing Component    | Exchange и маршрутизация по routing key                 |
+| work_queue_comp    | Work Queue           | Очередь задач на переобучение ML                        |
+| retry_comp         | Retry Component      | Повторная доставка и dead-letter очередь                |
+
 ## Правила
 
 1. ID пишутся латиницей, snake_case.

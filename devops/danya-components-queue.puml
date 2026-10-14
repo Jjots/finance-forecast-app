@@ -1,0 +1,35 @@
+@startuml "Finance Forecast - Danya Queue Components"
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+title Компоненты контейнера queue (RabbitMQ)
+
+Container(scheduler, "Планировщик", "Airflow / Celery Beat", "Публикует задачи на переобучение.")
+
+Container_Boundary(ml_service, "ML-сервис (Python + scikit-learn / XGBoost)") {
+    Component(training_comp, "Training Component", "XGBoost, ARIMA", "Обучение моделей по задаче из очереди.")
+}
+
+Container_Boundary(queue, "Брокер сообщений (RabbitMQ, одно адресное пространство процесса брокера)") {
+    Boundary(entry_layer, "Входной слой") {
+        Component(connection_comp, "Connection Component", "AMQP 0-9-1", "Принимает соединения и каналы, проверяет vhost и права.")
+    }
+
+    Boundary(routing_layer, "Слой маршрутизации") {
+        Component(routing_comp, "Routing Component", "Direct exchange", "Маршрутизация по routing key на рабочую очередь или retry.")
+    }
+
+    Boundary(store_layer, "Слой хранения задач") {
+        Component(work_queue_comp, "Work Queue", "Durable queue", "Очередь задач ml.retrain до ack от потребителя.")
+        Component(retry_comp, "Retry Component", "TTL + DLQ", "Повторная доставка при nack/timeout; dead-letter после лимита попыток.")
+    }
+}
+
+Rel(scheduler, connection_comp, "Публикация задачи переобучения", "AMQP")
+Rel(connection_comp, routing_comp, "Передать входящее сообщение на маршрутизацию", "Python Call")
+Rel(routing_comp, work_queue_comp, "Положить задачу в рабочую очередь", "Python Call")
+Rel(work_queue_comp, retry_comp, "Nack или истечение TTL", "Python Call")
+Rel(retry_comp, routing_comp, "Повторно маршрутизировать задачу", "Python Call")
+Rel(work_queue_comp, training_comp, "Доставить задачу на переобучение", "AMQP")
+
+@enduml
