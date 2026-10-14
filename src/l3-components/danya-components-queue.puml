@@ -4,11 +4,9 @@
 LAYOUT_WITH_LEGEND()
 title Компоненты контейнера queue (RabbitMQ)
 
-Container(scheduler, "Планировщик", "Airflow / Celery Beat", "Публикует задачи на переобучение.")
+Container_Ext(scheduler, "Планировщик", "Airflow / Celery Beat", "Публикует задачи на переобучение.")
 
-Container_Boundary(ml_service, "ML-сервис (Python + scikit-learn / XGBoost)") {
-    Component(training_comp, "Training Component", "XGBoost, ARIMA", "Обучение моделей по задаче из очереди.")
-}
+Container_Ext(ml_service, "ML-сервис", "Python + scikit-learn / XGBoost", "Обучение моделей по задаче из очереди.")
 
 Container_Boundary(queue, "Брокер сообщений (RabbitMQ, одно адресное пространство процесса брокера)") {
     Boundary(entry_layer, "Входной слой") {
@@ -30,6 +28,6 @@ Rel(connection_comp, routing_comp, "Передать входящее сообщ
 Rel(routing_comp, work_queue_comp, "Положить задачу в рабочую очередь", "Python Call")
 Rel(work_queue_comp, retry_comp, "Nack или истечение TTL", "Python Call")
 Rel(retry_comp, routing_comp, "Повторно маршрутизировать задачу", "Python Call")
-Rel(work_queue_comp, training_comp, "Доставить задачу на переобучение", "AMQP")
+Rel(work_queue_comp, ml_service, "Доставить задачу на переобучение", "AMQP")
 
 @enduml

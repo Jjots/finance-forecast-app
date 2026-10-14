@@ -8,13 +8,9 @@ System_Ext(rfsd_dataset, "РСБУ (ИПП)", "Финансовая отчётн
 System_Ext(cbr_api, "ЦБ РФ", "Ключевая ставка, курсы валют.")
 System_Ext(moex_api, "Московская биржа", "Котировки, индексы.")
 
-Container_Boundary(backend, "Backend (Python + FastAPI)") {
-    Component(data_comp, "Данные", "FastAPI", "Приём загруженных батчей и статусов от scheduler.")
-}
+Container_Ext(backend, "Backend", "Python + FastAPI", "Приём загруженных батчей и статусов от scheduler.")
 
-Container_Boundary(queue, "Брокер сообщений (RabbitMQ)") {
-    Component(connection_comp, "Connection Component", "AMQP 0-9-1", "Точка входа publisher: соединение и канал.")
-}
+Container_Ext(queue, "Брокер сообщений", "RabbitMQ", "Точка входа publisher: соединение и канал.")
 
 Container_Boundary(scheduler, "Планировщик (Python, Airflow / Celery Beat, одно адресное пространство)") {
     Boundary(orchestration_layer, "Слой оркестрации") {
@@ -40,7 +36,7 @@ Rel(ingest_comp, backend_client_comp, "Передать загруженный �
 Rel(source_adapter_comp, rfsd_dataset, "Скачать отчётность", "HTTPS/File")
 Rel(source_adapter_comp, cbr_api, "Загрузить макроэкономику", "REST/HTTPS")
 Rel(source_adapter_comp, moex_api, "Загрузить котировки", "REST/HTTPS")
-Rel(backend_client_comp, data_comp, "Передать данные и статус загрузки", "HTTPS/JSON")
-Rel(broker_publisher_comp, connection_comp, "Опубликовать задачу переобучения", "AMQP")
+Rel(backend_client_comp, backend, "Передать данные и статус загрузки", "HTTPS/JSON")
+Rel(broker_publisher_comp, queue, "Опубликовать задачу переобучения", "AMQP")
 
 @enduml

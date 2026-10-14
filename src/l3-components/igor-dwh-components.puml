@@ -2,29 +2,36 @@
 !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
 
 LAYOUT_WITH_LEGEND()
-title L3 — Компоненты хранилища dwh (TimescaleDB)
+title L3 — Компоненты хранилища временных рядов dwh (TimescaleDB)
 
-Container(backend, "Backend", "Python + FastAPI", "Аналитические запросы.")
-Container(ml_service, "ML-сервис", "Python + ML", "Чтение признаков и рядов; согласуемая запись данных.")
+Container_Ext(backend, "Backend", "Python + FastAPI", "Аналитические запросы и запись данных.")
+Container_Ext(ml_service, "ML-сервис", "Python + scikit-learn / XGBoost", "Чтение данных для обучения и прогноза.")
 
-' Внутренние ID ниже — предложение; необходимо согласовать по docs/glossary.md ДО PR.
-Container_Boundary(dwh, "dwh — TimescaleDB: логические SQL-модули") {
-    Component(dwh_access_comp, "Query / SQL API", "PostgreSQL SQL", "Интерфейс запросов и загрузки в БД.")
-    Component(dwh_stage_comp, "Staging", "SQL staging tables", "Получает уже разобранные записи источников.")
-    Component(dwh_mapping_comp, "Canonical Mapping", "SQL functions", "Коды, даты, единицы и идентификаторы.")
-    Component(dwh_quality_comp, "Quality Checks", "SQL constraints/functions", "Проверка типов, пропусков и дублей.")
-    Component(dwh_facts_comp, "Time-series Facts", "TimescaleDB hypertables", "Хранит показатели и котировки по времени.")
-    Component(dwh_marts_comp, "Analytical Views", "SQL / continuous aggregates", "Готовит выборки для аналитики и ML.")
-    Component(dwh_lineage_comp, "Source Lineage", "SQL tables/functions", "Фиксирует источник, время и версию загрузки.")
+Container_Boundary(dwh, "dwh — TimescaleDB: hypertables, агрегаты и политики хранения") {
+
+    Boundary(storage_layer, "Слой хранения временных рядов") {
+        Component(dwh_hypertable_comp, "Hypertable Storage", "TimescaleDB hypertables", "Хранение временных рядов с разбивкой по времени.")
+    }
+
+    Boundary(access_layer, "Слой доступа к данным") {
+        Component(dwh_ingest_comp, "Ingest Service", "SQL / TimescaleDB API", "Приём данных от backend и вставка в hypertables.")
+        Component(dwh_query_comp, "Query Service", "SQL / TimescaleDB API", "Аналитические запросы: агрегации, срезы, поиск по времени.")
+    }
+
+    Boundary(maintenance_layer, "Слой обслуживания") {
+        Component(dwh_retention_comp, "Retention Policy", "TimescaleDB policies", "Политики хранения — удаление и архивация старых данных.")
+        Component(dwh_continuous_agg_comp, "Continuous Aggregates", "TimescaleDB materialized views", "Материализованные представления для быстрых агрегатов.")
+    }
 }
 
-Rel(backend, dwh_access_comp, "Аналитические SQL-запросы", "SQL/TCP")
-Rel(ml_service, dwh_access_comp, "Читает ряды; возможна загрузка нормализованных строк", "SQL/TCP")
-Rel(dwh_access_comp, dwh_stage_comp, "Помещает подготовленные записи", "SQL Function Call")
-Rel(dwh_stage_comp, dwh_mapping_comp, "Передает поля на приведение", "SQL Function Call")
-Rel(dwh_mapping_comp, dwh_quality_comp, "Валидирует значения и ключи", "SQL Function Call")
-Rel(dwh_quality_comp, dwh_facts_comp, "Записывает проверенные ряды", "SQL Function Call")
-Rel(dwh_quality_comp, dwh_lineage_comp, "Сохраняет происхождение загрузки", "SQL Function Call")
-Rel(dwh_access_comp, dwh_marts_comp, "Выбирает агрегированные показатели", "SQL Function Call")
-Rel(dwh_marts_comp, dwh_facts_comp, "Читает и агрегирует исходные ряды", "SQL/Query")
+Rel(backend, dwh_ingest_comp, "Запись данных", "SQL/TCP")
+Rel(backend, dwh_query_comp, "Аналитические запросы", "SQL/TCP")
+Rel(ml_service, dwh_query_comp, "Чтение данных для обучения", "SQL/TCP")
+
+Rel(dwh_ingest_comp, dwh_hypertable_comp, "Вставка в hypertable", "SQL/Insert")
+Rel(dwh_query_comp, dwh_hypertable_comp, "Чтение из hypertable", "SQL/Select")
+Rel(dwh_query_comp, dwh_continuous_agg_comp, "Запрос агрегатов", "SQL/Select")
+Rel(dwh_continuous_agg_comp, dwh_hypertable_comp, "Чтение для агрегатов", "SQL/Select")
+Rel(dwh_retention_comp, dwh_hypertable_comp, "Удаление старых данных", "SQL/Delete")
+
 @enduml
