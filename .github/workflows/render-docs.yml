@@ -1,0 +1,92 @@
+
+name: Render C4 Architecture Docs
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-and-render:
+    name: Validate and Render PlantUML
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install Graphviz
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y graphviz
+
+      - name: Download PlantUML
+        run: |
+          curl -fL --retry 3 \
+            https://repo.maven.apache.org/maven2/net/sourceforge/plantuml/plantuml/1.2025.2/plantuml-1.2025.2.jar \
+            -o plantuml.jar
+          java -jar plantuml.jar -version
+
+      - name: Check project diagram rules
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if grep -RnE 'Rel_[DRLU]\(' src --include='*.puml'; then
+            echo "ERROR: Use Rel() instead of directional macros"
+            exit 1
+          fi
+
+      - name: Validate and render diagrams
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          count=0
+
+          while IFS= read -r -d '' file; do
+            if ! grep -q '@startuml' "$file"; then
+              echo "Skipping fragment: $file"
+              continue
+            fi
+
+            echo "Processing: $file"
+
+            relative="${file#src/}"
+            folder="$(dirname "$relative")"
+            output="$GITHUB_WORKSPACE/docs/images/$folder"
+
+            mkdir -p "$output"
+
+            java -jar plantuml.jar -checkonly "$file"
+            java -jar plantuml.jar -tpng -o "$output" "$file"
+            java -jar plantuml.jar -tsvg -o "$output" "$file"
+
+            count=$((count + 1))
+          done < <(find src -type f -name '*.puml' -print0)
+
+          if [ "$count" -eq 0 ]; then
+            echo "ERROR: No diagrams found"
+            exit 1
+          fi
+
+          echo "Successfully processed $count diagrams"
+
+      - name: Upload generated diagrams
+        uses: actions/upload-artifact@v4
+        with:
+          name: finance-forecast-c4-diagrams
+          path: docs/images/
+          if-no-files-found: error
+          retention-days: 30
