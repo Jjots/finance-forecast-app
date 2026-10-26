@@ -16,8 +16,8 @@ Container(ml_service, "ML-сервис", "Python + scikit-learn / XGBoost", "О�
 ContainerDb(db_main, "Основная БД", "PostgreSQL", "Пользователи, компании, настройки, метаданные моделей.")
 ContainerDb(dwh, "Хранилище временных рядов", "TimescaleDB", "Исторические финансовые показатели, котировки, макроэкономика.")
 
-Rel(web_app, api_backend, "Запросы", "HTTPS/JSON")
-Rel(mobile_app, api_backend, "Запросы", "HTTPS/JSON")
+Rel(web_app, backend, "Запросы", "HTTPS/JSON")
+Rel(mobile_app, backend, "Запросы", "HTTPS/JSON")
 Rel(api_backend, ml_service, "Запрос прогноза", "REST/gRPC")
 Rel(api_backend, db_main, "Чтение/запись", "SQL/TCP")
 Rel(api_backend, dwh, "Аналитические запросы", "SQL/TCP")
