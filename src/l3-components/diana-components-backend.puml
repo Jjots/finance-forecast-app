@@ -15,7 +15,7 @@ ContainerDb_Ext(dwh, "Хранилище временных рядов", "Timesc
 
 ' BACKEND: КОМПОНЕНТЫ
 
-Container_Boundary(api_backend, "Backend API (Python + FastAPI)") {
+Container_Boundary(backend, "Backend API (Python + FastAPI)") {
 
     Boundary(app_layer, "Прикладной слой (FastAPI-роутеры + сервисы)") {
         Component(auth_comp, "Аутентификация", "FastAPI, JWT, RBAC", "Вход, выдача и проверка токенов, роли (analyst, investor, risk_manager, admin), управление пользователями. Проверка токена и роли — зависимость всех остальных роутеров.")
