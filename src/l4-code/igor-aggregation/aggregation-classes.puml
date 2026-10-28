@@ -1,0 +1,34 @@
+@startuml
+!pragma layout smetana
+title L4: dwh / dwh_query_comp
+
+interface AggregationStrategy <<Protocol>> {
+  +execute(series: FinancialTimeSeries): float
+}
+class FinancialQueryService {
+  -_strategy: AggregationStrategy
+  +__init__(strategy: AggregationStrategy): None
+  +set_strategy(strategy: AggregationStrategy): None
+  +execute(values: Sequence[float]): float
+}
+class FinancialTimeSeries <<frozen dataclass>> {
+  +values: tuple[float, ...]
+  +__post_init__(): None
+}
+class SumAggregation {
+  +execute(series: FinancialTimeSeries): float
+}
+class AverageAggregation {
+  +execute(series: FinancialTimeSeries): float
+}
+class MaxAggregation {
+  +execute(series: FinancialTimeSeries): float
+}
+AggregationStrategy <|.. SumAggregation
+AggregationStrategy <|.. AverageAggregation
+AggregationStrategy <|.. MaxAggregation
+FinancialQueryService --> "1" AggregationStrategy : delegates / replaces
+FinancialQueryService ..> FinancialTimeSeries : creates validated snapshot
+AggregationStrategy ..> FinancialTimeSeries : input contract
+
+@enduml
