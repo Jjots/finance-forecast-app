@@ -1,4 +1,4 @@
-@startuml
+@startuml "Finance Forecast - Kate WEB_app Components"
 !include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
 LAYOUT_WITH_LEGEND()
 title Диаграмма компонентов web_app ИС "Финансовый прогноз"

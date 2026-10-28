@@ -1,0 +1,35 @@
+@startuml
+title L4 Ч ƒиаграмма классов export_service (Strategy)
+
+interface ExportStrategy {
+  + execute(report: FinancialReport): Promise<Buffer>
+}
+
+class PdfExportStrategy {
+  + execute(report: FinancialReport): Promise<Buffer>
+}
+
+class ExcelExportStrategy {
+  + execute(report: FinancialReport): Promise<Buffer>
+}
+
+class FinancialReport {
+  - company: string
+  - forecastYear: number
+  - revenueForecast: number
+}
+
+class ExportContext {
+  - strategy: ExportStrategy
+  + setStrategy(strategy: ExportStrategy): void
+  + executeExport(report: FinancialReport): Promise<Buffer>
+}
+
+ExportStrategy <|.. PdfExportStrategy
+ExportStrategy <|.. ExcelExportStrategy
+ExportContext --> ExportStrategy : uses
+ExportContext ..> FinancialReport : passes
+PdfExportStrategy ..> FinancialReport : uses
+ExcelExportStrategy ..> FinancialReport : uses
+
+@enduml
