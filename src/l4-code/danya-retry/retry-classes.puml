@@ -1,0 +1,82 @@
+@startuml retry-classes
+title L4: диаграмма классов retry_comp (контейнер queue), паттерн Strategy
+
+package "retry_comp" {
+
+    interface RetryStrategy <<interface>> {
+        +execute(retry_number: int): float
+    }
+
+    class FixedDelayStrategy {
+        -_delay: float
+        +__init__(delay: float = 2.0)
+        +execute(retry_number: int): float
+    }
+
+    class ExponentialBackoffStrategy {
+        -_base_delay: float
+        -_factor: float
+        -_max_delay: Optional[float]
+        +__init__(base_delay: float = 2.0, factor: float = 2.0, max_delay: Optional[float] = None)
+        +execute(retry_number: int): float
+    }
+
+    class RetryExecutor {
+        -_strategy: RetryStrategy
+        -_max_attempts: int
+        -_sleep: Sleeper
+        -_dead_letter_sink: Optional[DeadLetterSink]
+        +__init__(strategy: RetryStrategy, max_attempts: int = 3, sleep: Sleeper = time.sleep, dead_letter_sink: Optional[DeadLetterSink] = None)
+        +set_strategy(strategy: RetryStrategy): None
+        +execute(task: Callable[[], T], task_name: str = "task"): RetryResult[T]
+        -_fail(status: RetryStatus, task_name: str, attempts: int, delays: list[float], errors: list[str]): RetryResult[T]
+    }
+
+    interface DeadLetterSink <<Protocol>> {
+        +publish(letter: DeadLetter): None
+    }
+
+    class InMemoryDeadLetterQueue {
+        -_items: list[DeadLetter]
+        +publish(letter: DeadLetter): None
+        +items: tuple[DeadLetter, ...]
+    }
+
+    class RetryResult<T> <<dataclass, frozen>> {
+        +status: RetryStatus
+        +value: Optional[T]
+        +attempts: int
+        +delays: tuple[float, ...]
+        +errors: tuple[str, ...]
+        +succeeded: bool
+    }
+
+    enum RetryStatus {
+        SUCCESS
+        EXHAUSTED
+        PERMANENT_FAILURE
+    }
+
+    class DeadLetter <<dataclass, frozen>> {
+        +task_name: str
+        +reason: str
+        +attempts: int
+    }
+
+    class PermanentError <<Exception>>
+}
+
+RetryStrategy <|.. FixedDelayStrategy
+RetryStrategy <|.. ExponentialBackoffStrategy
+DeadLetterSink <|.. InMemoryDeadLetterQueue
+
+RetryExecutor o--> RetryStrategy : strategy\n(меняется через set_strategy)
+RetryExecutor o--> DeadLetterSink : dead_letter_sink
+RetryExecutor ..> RetryResult : создаёт
+RetryExecutor ..> DeadLetter : создаёт
+RetryExecutor ..> PermanentError : не повторяет
+RetryResult --> RetryStatus
+DeadLetterSink ..> DeadLetter
+InMemoryDeadLetterQueue o--> DeadLetter
+
+@enduml
