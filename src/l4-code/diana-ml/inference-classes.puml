@@ -1,0 +1,111 @@
+@startuml
+title L4 (Code): inference_comp (ml_service) — паттерн Strategy
+
+hide empty members
+
+class TimeSeriesData <<dataclass, frozen>> {
+  +values: Tuple[float, ...]
+  +from_sequence(values: Sequence[float]): TimeSeriesData
+}
+
+class PredictionResult <<dataclass, frozen>> {
+  +horizon: int
+  +values: Tuple[float, ...]
+  +model_name: str
+}
+
+interface ForecastStrategy <<ABC>> {
+  +name: str
+  +predict(data: TimeSeriesData, horizon: int): PredictionResult
+}
+
+class ForecastContext {
+  -strategy: ForecastStrategy
+  +strategy_name: str
+  +set_strategy(strategy: ForecastStrategy): None
+  +predict(data: TimeSeriesData, horizon: int): PredictionResult
+}
+
+class XGBoostStrategy {
+  -n_lags: int
+  -factory: Callable[[], RegressorLike]
+  +name: str
+  +predict(data: TimeSeriesData, horizon: int): PredictionResult
+}
+
+class ARIMAStrategy {
+  -order: Tuple[int, int, int]
+  -min_observations: int
+  -factory: Callable[[Sequence[float], Tuple[int, int, int]], ArimaModel]
+  +name: str
+  +predict(data: TimeSeriesData, horizon: int): PredictionResult
+}
+
+interface RegressorLike <<Protocol>> {
+  +fit(x: ndarray, y: ndarray): object
+  +predict(x: ndarray): ndarray
+}
+
+interface ArimaModel <<Protocol>> {
+  +fit(): ArimaFitted
+}
+
+interface ArimaFitted <<Protocol>> {
+  +forecast(steps: int): Sequence[float]
+}
+
+class LeastSquaresRegressor <<имитация XGBRegressor>> {
+  +fit(x: ndarray, y: ndarray): LeastSquaresRegressor
+  +predict(x: ndarray): ndarray
+}
+
+class DriftArimaModel <<имитация ARIMA>> {
+  +fit(): ArimaFitted
+}
+
+class InferenceError <<exception>>
+class InvalidTimeSeriesError <<exception>>
+class InvalidHorizonError <<exception>>
+class InsufficientDataError <<exception>>
+class ModelNotAvailableError <<exception>>
+class ModelFitError <<exception>>
+
+' Strategy: контекст использует интерфейс, модель подменяется во время выполнения
+ForecastContext --> ForecastStrategy : uses
+ForecastStrategy <|.. XGBoostStrategy
+ForecastStrategy <|.. ARIMAStrategy
+
+' Модели данных
+ForecastStrategy ..> TimeSeriesData
+ForecastStrategy ..> PredictionResult
+
+' Зависимости стратегий от внешних моделей (xgboost, statsmodels)
+XGBoostStrategy --> RegressorLike : factory()
+ARIMAStrategy --> ArimaModel : factory()
+ArimaModel ..> ArimaFitted
+
+' Имитации реализуют те же интерфейсы
+RegressorLike <|.. LeastSquaresRegressor
+ArimaModel <|.. DriftArimaModel
+
+' Иерархия исключений
+InferenceError <|-- InvalidTimeSeriesError
+InferenceError <|-- InvalidHorizonError
+InferenceError <|-- InsufficientDataError
+InferenceError <|-- ModelNotAvailableError
+InferenceError <|-- ModelFitError
+
+XGBoostStrategy ..> InsufficientDataError : throws
+ARIMAStrategy ..> InsufficientDataError : throws
+XGBoostStrategy ..> ModelNotAvailableError : throws
+ARIMAStrategy ..> ModelNotAvailableError : throws
+ForecastContext ..> InvalidHorizonError : throws
+TimeSeriesData ..> InvalidTimeSeriesError : throws
+
+note right of ForecastStrategy
+  L3: ml_service / inference_comp
+  Признаки: feature_engineer_comp
+  Модели: model_registry_comp
+end note
+
+@enduml
