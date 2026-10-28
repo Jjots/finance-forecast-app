@@ -1,10 +1,12 @@
 @startuml "Export Service Class Diagram"
 title L4 - Диаграмма классов export_service (Strategy)
 
+' 1. Интерфейс стратегии (единый контракт)
 interface ExportStrategy {
   + execute(report: FinancialReport): Promise<Blob>
 }
 
+' 2. Конкретные стратегии (реализуют интерфейс)
 class PdfExportStrategy {
   + execute(report: FinancialReport): Promise<Blob>
 }
@@ -13,21 +15,29 @@ class ExcelExportStrategy {
   + execute(report: FinancialReport): Promise<Blob>
 }
 
+' 3. Модель данных (DTO)
 class FinancialReport {
   - company: string
   - forecastYear: number
   - revenueForecast: number
 }
 
+' 4. Контекст (управляет стратегией)
 class ExportContext {
   - strategy: ExportStrategy
   + setStrategy(strategy: ExportStrategy): void
   + export(report: FinancialReport): Promise<Blob>
 }
 
+' --- СВЯЗИ ---
+' Реализация интерфейса (пунктирная линия с полым треугольником)
 ExportStrategy <|.. PdfExportStrategy
 ExportStrategy <|.. ExcelExportStrategy
+
+' Агрегация (контекст использует интерфейс)
 ExportContext --> ExportStrategy : uses
+
+' Зависимости (классы используют модель данных)
 ExportContext ..> FinancialReport : passes
 PdfExportStrategy ..> FinancialReport : uses
 ExcelExportStrategy ..> FinancialReport : uses
