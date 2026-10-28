@@ -1,0 +1,117 @@
+@startuml
+title L4 (Code): forecast_comp (backend) — паттерн Strategy
+
+hide empty members
+
+enum ForecastSource {
+  CACHE
+  ML
+}
+
+class ForecastRequest <<dataclass, frozen>> {
+  +company_id: int
+  +horizon: int
+}
+
+class ForecastResult <<dataclass, frozen>> {
+  +company_id: int
+  +horizon: int
+  +values: Tuple[float, ...]
+  +source: ForecastSource
+  +calculated_at: datetime
+}
+
+interface ForecastCacheReader <<Protocol>> {
+  +get(company_id: int, horizon: int): Optional[ForecastResult]
+}
+
+interface ForecastCacheWriter <<Protocol>> {
+  +put(result: ForecastResult): None
+}
+
+interface MlClient <<Protocol>> {
+  +predict(company_id: int, horizon: int): Sequence[float]
+}
+
+interface ForecastRetrievalStrategy <<ABC>> {
+  +execute(request: ForecastRequest): ForecastResult
+}
+
+class ForecastService {
+  -strategy: ForecastRetrievalStrategy
+  +set_strategy(strategy: ForecastRetrievalStrategy): None
+  +get_forecast(request: ForecastRequest): ForecastResult
+}
+
+class CachedForecastStrategy {
+  -cache: ForecastCacheReader
+  +execute(request: ForecastRequest): ForecastResult
+}
+
+class MlForecastStrategy {
+  -ml_client: MlClient
+  -writer: Optional[ForecastCacheWriter]
+  -clock: Callable[[], datetime]
+  +execute(request: ForecastRequest): ForecastResult
+}
+
+class FallbackForecastStrategy {
+  -primary: ForecastRetrievalStrategy
+  -fallback: ForecastRetrievalStrategy
+  +execute(request: ForecastRequest): ForecastResult
+}
+
+class ForecastError <<exception>>
+class InvalidForecastRequestError <<exception>>
+class CacheMissError <<exception>>
+class MlServiceUnavailableError <<exception>>
+class InvalidMlResponseError <<exception>>
+
+class InMemoryForecastCache <<имитатор db_repo_comp>> {
+  +get(company_id: int, horizon: int): Optional[ForecastResult]
+  +put(result: ForecastResult): None
+}
+
+class FakeMlClient <<имитатор ml_client_comp>> {
+  +predict(company_id: int, horizon: int): Sequence[float]
+}
+
+' Strategy: контекст использует интерфейс, реализации подставляются во время выполнения
+ForecastService --> ForecastRetrievalStrategy : uses
+ForecastRetrievalStrategy <|.. CachedForecastStrategy
+ForecastRetrievalStrategy <|.. MlForecastStrategy
+ForecastRetrievalStrategy <|.. FallbackForecastStrategy
+
+' Зависимости стратегий от портов (db_repo_comp, ml_client_comp)
+CachedForecastStrategy --> ForecastCacheReader : cache
+MlForecastStrategy --> MlClient : ml_client
+MlForecastStrategy --> ForecastCacheWriter : writer
+FallbackForecastStrategy o--> ForecastRetrievalStrategy : primary, fallback
+
+' Имитаторы реализуют порты
+ForecastCacheReader <|.. InMemoryForecastCache
+ForecastCacheWriter <|.. InMemoryForecastCache
+MlClient <|.. FakeMlClient
+
+' Модели данных
+ForecastRetrievalStrategy ..> ForecastRequest
+ForecastRetrievalStrategy ..> ForecastResult
+ForecastResult --> ForecastSource
+
+' Иерархия исключений
+ForecastError <|-- InvalidForecastRequestError
+ForecastError <|-- CacheMissError
+ForecastError <|-- MlServiceUnavailableError
+ForecastError <|-- InvalidMlResponseError
+
+CachedForecastStrategy ..> CacheMissError : throws
+MlForecastStrategy ..> InvalidMlResponseError : throws
+FallbackForecastStrategy ..> MlServiceUnavailableError : catches
+ForecastRequest ..> InvalidForecastRequestError : throws
+
+note right of ForecastRetrievalStrategy
+  L3: backend / forecast_comp
+  Порты: db_repo_comp (кэш), ml_client_comp (ML)
+end note
+
+@enduml
