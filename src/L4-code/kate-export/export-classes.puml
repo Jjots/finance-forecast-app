@@ -1,5 +1,5 @@
-@startuml
-title L4 — Диаграмма классов export_service (Strategy)
+@startuml "Export Service Class Diagram"
+title L4 - Р”РёР°РіСЂР°РјРјР° РєР»Р°СЃСЃРѕРІ export_service (Strategy)
 
 interface ExportStrategy {
   + execute(report: FinancialReport): Promise<Buffer>
