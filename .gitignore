@@ -14,3 +14,7 @@ build/
 # OS
 .DS_Store
 Thumbs.db
+
+#тестовые файлы
+report.pdf
+report.xlsx
