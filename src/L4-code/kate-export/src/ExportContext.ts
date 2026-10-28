@@ -12,7 +12,8 @@ export class ExportContext {
         this.strategy = strategy;
     }
 
-    public async executeExport(report: FinancialReport): Promise<Blob> {
+    // Переименовали executeExport в export (как в ТЗ)
+    public async export(report: FinancialReport): Promise<Blob> {
         return this.strategy.execute(report);
     }
 }

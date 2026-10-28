@@ -9,16 +9,15 @@ async function main() {
 
     const context = new ExportContext(new PdfExportStrategy());
     console.log('Exporting to PDF...');
-    const pdfBlob = await context.executeExport(report);
+    const pdfBlob = await context.export(report);
     
-    // Для демонстрации в Node.js конвертируем Blob в Buffer и сохраняем
     const pdfBuffer = Buffer.from(await pdfBlob.arrayBuffer());
     fs.writeFileSync('report.pdf', pdfBuffer);
     console.log(`PDF created (size: ${pdfBuffer.length} bytes)`);
 
     context.setStrategy(new ExcelExportStrategy());
     console.log('Exporting to Excel...');
-    const excelBlob = await context.executeExport(report);
+    const excelBlob = await context.export(report);
     
     const excelBuffer = Buffer.from(await excelBlob.arrayBuffer());
     fs.writeFileSync('report.xlsx', excelBuffer);
