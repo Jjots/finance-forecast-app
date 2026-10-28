@@ -4,29 +4,45 @@ import { ExcelExportStrategy } from '../src/strategies/ExcelExportStrategy';
 import { FinancialReport } from '../src/models/FinancialReport';
 
 describe('Export Strategy Pattern', () => {
-    const report = new FinancialReport('TestCompany', 2027, 1000000);
+    const validReport = new FinancialReport('TestCompany', 2027, 1000000);
+    const invalidReport = new FinancialReport('', 1999, -100);
 
-    it('should export to Blob PDF', async () => {
+    // --- ПОЛОЖИТЕЛЬНЫЕ ТЕСТЫ ---
+
+    it('should export to real PDF (check signature)', async () => {
         const context = new ExportContext(new PdfExportStrategy());
-        const result = await context.export(report);
-        expect(result).toBeInstanceOf(Blob);
-        expect(result.type).toBe('application/pdf');
+        const blob = await context.export(validReport);
+        
+        expect(blob).toBeInstanceOf(Blob);
+        expect(blob.type).toBe('application/pdf');
+
+        const buffer = await blob.arrayBuffer();
+        const firstBytes = new Uint8Array(buffer.slice(0, 4));
+        expect(String.fromCharCode(...firstBytes)).toBe('%PDF');
     });
 
-    it('should switch to Blob Excel export', async () => {
+    it('should switch to real Excel (check signature)', async () => {
         const context = new ExportContext(new PdfExportStrategy());
         context.setStrategy(new ExcelExportStrategy());
-        const result = await context.export(report);
-        expect(result).toBeInstanceOf(Blob);
-        expect(result.type).toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        const blob = await context.export(validReport);
+        
+        expect(blob).toBeInstanceOf(Blob);
+        expect(blob.type).toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+        const buffer = await blob.arrayBuffer();
+        const firstBytes = new Uint8Array(buffer.slice(0, 2));
+        expect(String.fromCharCode(...firstBytes)).toBe('PK');
     });
 
-    // ОТРИЦАТЕЛЬНЫЙ ТЕСТ
-    it('should throw error for invalid report', async () => {
-        const invalidReport = new FinancialReport('', -1, -100);
+    // --- ОТРИЦАТЕЛЬНЫЕ ТЕСТЫ ---
+
+    it('should throw error for invalid PDF report', async () => {
         const context = new ExportContext(new PdfExportStrategy());
-        
-        // Проверяем, что ошибка обрабатывается корректно
-        await expect(context.export(invalidReport)).resolves.toBeInstanceOf(Blob);
+        await expect(context.export(invalidReport)).rejects.toThrow('Не удалось сгенерировать PDF');
+    });
+
+    it('should throw error for invalid Excel report', async () => {
+        const context = new ExportContext(new ExcelExportStrategy());
+        await expect(context.export(invalidReport)).rejects.toThrow('Не удалось сгенерировать Excel');
     });
 });
