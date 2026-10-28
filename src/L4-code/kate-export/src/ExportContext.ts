@@ -12,7 +12,7 @@ export class ExportContext {
         this.strategy = strategy;
     }
 
-    public async executeExport(report: FinancialReport): Promise<Buffer> {
+    public async executeExport(report: FinancialReport): Promise<Blob> {
         return this.strategy.execute(report);
     }
 }

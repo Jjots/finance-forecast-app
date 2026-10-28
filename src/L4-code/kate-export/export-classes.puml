@@ -2,15 +2,20 @@
 title L4 - Диаграмма классов export_service (Strategy)
 
 interface ExportStrategy {
-  + execute(report: FinancialReport): Promise<Buffer>
+  + execute(report: FinancialReport): Promise<Blob>
 }
 
 class PdfExportStrategy {
-  + execute(report: FinancialReport): Promise<Buffer>
+  + execute(report: FinancialReport): Promise<Blob>
 }
 
 class ExcelExportStrategy {
-  + execute(report: FinancialReport): Promise<Buffer>
+  + execute(report: FinancialReport): Promise<Blob>
+}
+
+' Этот класс можно добавить, если генерация переносится на FastAPI
+class ApiExportStrategy {
+  + execute(report: FinancialReport): Promise<Blob>
 }
 
 class FinancialReport {
@@ -22,14 +27,18 @@ class FinancialReport {
 class ExportContext {
   - strategy: ExportStrategy
   + setStrategy(strategy: ExportStrategy): void
-  + executeExport(report: FinancialReport): Promise<Buffer>
+  + executeExport(report: FinancialReport): Promise<Blob>
 }
 
 ExportStrategy <|.. PdfExportStrategy
 ExportStrategy <|.. ExcelExportStrategy
+ExportStrategy <|.. ApiExportStrategy
 ExportContext --> ExportStrategy : uses
 ExportContext ..> FinancialReport : passes
 PdfExportStrategy ..> FinancialReport : uses
 ExcelExportStrategy ..> FinancialReport : uses
+ApiExportStrategy ..> FinancialReport : uses
+
+
 
 @enduml

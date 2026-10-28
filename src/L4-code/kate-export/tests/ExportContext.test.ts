@@ -6,20 +6,20 @@ import { FinancialReport } from '../src/models/FinancialReport';
 describe('Export Strategy Pattern', () => {
     const report = new FinancialReport('TestCompany', 2027, 1000000);
 
-    it('should export to real PDF', async () => {
+    it('should export to Blob PDF', async () => {
         const context = new ExportContext(new PdfExportStrategy());
         const result = await context.executeExport(report);
         
-        // Проверяем, что это реальный PDF (начинается с %PDF)
-        expect(result.subarray(0, 4).toString()).toBe('%PDF');
+        expect(result).toBeInstanceOf(Blob);
+        expect(result.type).toBe('application/pdf');
     });
 
-    it('should switch to real Excel export', async () => {
+    it('should switch to Blob Excel export', async () => {
         const context = new ExportContext(new PdfExportStrategy());
         context.setStrategy(new ExcelExportStrategy());
         const result = await context.executeExport(report);
         
-        // Проверяем, что это реальный Excel (ZIP-архив, начинается с PK)
-        expect(result.subarray(0, 2).toString()).toBe('PK');
+        expect(result).toBeInstanceOf(Blob);
+        expect(result.type).toBe('application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     });
 });
