@@ -1,0 +1,30 @@
+
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Finance Forecast System — Переобучение ML-модели
+
+System_Boundary(finance_system, "Finance Forecast System") {
+
+    Container(scheduler, "Scheduler", "Apache Airflow", "Запускает переобучение по расписанию")
+
+    Container(queue, "Queue", "RabbitMQ", "Принимает и доставляет задачи переобучения")
+
+    Container(ml_service, "ML Service", "Python, XGBoost / ARIMA", "Обучает модели, оценивает качество и сохраняет версии")
+
+    ContainerDb(dwh, "DWH", "TimescaleDB", "Хранит исторические финансовые ряды")
+}
+
+Rel(scheduler, queue, "1. Публикует еженедельное задание на переобучение", "AMQPS / TLS, 5671")
+
+Rel(queue, ml_service, "2. Доставляет задание ml.retrain", "AMQPS / TLS, 5671")
+
+Rel(ml_service, dwh, "3. Запрашивает исторические данные для обучения", "SQL / TCP + TLS, 5433")
+
+Rel(dwh, ml_service, "4. Возвращает обучающие данные", "SQL / TCP + TLS, 5433")
+
+Rel(ml_service, queue, "5. Подтверждает обработку после обучения и сохранения версии", "AMQP ACK / TLS, 5671")
+
+@enduml

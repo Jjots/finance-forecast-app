@@ -1,0 +1,38 @@
+
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Finance Forecast System — System Landscape (L0)
+
+' Корпоративная ИТ-среда
+Enterprise_Boundary(enterprise, "Корпоративная ИТ-среда (проектируемая)") {
+
+    System(finance_system, "Finance Forecast System", "Анализ и прогнозирование финансовых показателей российских компаний")
+
+    System(corp_iam, "Корпоративная IAM/SSO", "Единая аутентификация пользователей. Проектируемая интеграция")
+
+    System(corp_bi, "Корпоративная BI-платформа", "Получение аналитики и прогнозов. Проектируемая интеграция")
+}
+
+' Внешние финансовые источники
+System_Ext(rfsd_dataset, "РСБУ (ИПП)", "Финансовая отчетность компаний, файлы Parquet")
+
+System_Ext(cbr_api, "Банк России", "Курсы валют и макроэкономические показатели")
+
+System_Ext(moex_api, "Московская биржа", "Котировки, индексы и рыночные показатели")
+
+' Взаимодействия с корпоративными системами
+Rel(finance_system, corp_iam, "Аутентификация пользователей (проектируется)", "OIDC / OAuth2 / HTTPS")
+
+Rel(corp_bi, finance_system, "Получение аналитики и прогнозов (проектируется)", "REST / HTTPS / JSON")
+
+' Получение финансовых данных
+Rel(finance_system, rfsd_dataset, "Загрузка финансовой отчетности", "HTTPS / File")
+
+Rel(finance_system, cbr_api, "Запрос макроэкономических данных", "REST / HTTPS")
+
+Rel(finance_system, moex_api, "Запрос рыночных данных", "REST / HTTPS")
+
+@enduml

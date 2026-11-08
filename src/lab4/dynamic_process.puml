@@ -1,0 +1,42 @@
+
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Container.puml
+
+title Finance Forecast System — Получение финансового прогноза
+
+Person(analyst, "Аналитик", "Запрашивает финансовый прогноз")
+
+System_Boundary(finance_system, "Finance Forecast System") {
+    Container(web_app, "Web App", "React + TypeScript", "Интерфейс аналитика")
+    Container(backend, "Backend", "Python + FastAPI", "Обработка запросов")
+    Container(ml_service, "ML Service", "Python, XGBoost / ARIMA", "Построение прогнозов")
+    ContainerDb(db_main, "Основная БД", "PostgreSQL", "Сохранённые прогнозы и метаданные")
+    ContainerDb(dwh, "DWH", "TimescaleDB", "Исторические финансовые ряды")
+}
+
+Rel(analyst, web_app, "1. Выбирает компанию и горизонт прогноза", "UI")
+
+Rel(web_app, backend, "2. Отправляет запрос прогноза", "HTTPS/JSON, 443")
+
+Rel(backend, db_main, "3. Проверяет сохранённый прогноз", "SQL/TCP + TLS, 5432")
+
+Rel(db_main, backend, "4. Актуальный прогноз отсутствует", "SQL/TCP + TLS, 5432")
+
+Rel(backend, ml_service, "5. Запрашивает новый прогноз", "REST/HTTPS, 8443")
+
+Rel(ml_service, dwh, "6. Запрашивает исторические ряды", "SQL/TCP + TLS, 5433")
+
+Rel(dwh, ml_service, "7. Возвращает исторические данные", "SQL/TCP + TLS, 5433")
+
+Rel(ml_service, backend, "8. Возвращает рассчитанный прогноз", "REST/HTTPS, 8443")
+
+Rel(backend, db_main, "9. Сохраняет новый прогноз", "SQL/TCP + TLS, 5432")
+
+Rel(db_main, backend, "10. Подтверждает сохранение", "SQL/TCP + TLS, 5432")
+
+Rel(backend, web_app, "11. Передаёт результат", "HTTPS/JSON, 443")
+
+Rel(web_app, analyst, "12. Отображает график прогноза", "UI")
+
+
+@enduml
