@@ -1,0 +1,68 @@
+
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Deployment.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Finance Forecast System — Deployment Diagram
+
+Person(analyst, "Аналитик", "Работает с системой через браузер")
+Person(investor, "Инвестор", "Использует мобильное приложение")
+
+Deployment_Node(pc, "Компьютер пользователя", "Windows / Linux / macOS") {
+    Container(web_app, "Web App", "React + TypeScript", "Веб-интерфейс в браузере")
+}
+
+Deployment_Node(phone, "Смартфон", "Android / iOS") {
+    Container(mobile_app, "Mobile App", "React Native", "Мобильное приложение")
+}
+
+Deployment_Node(cloud, "Облачная инфраструктура", "Linux VM / Docker") {
+
+    Deployment_Node(web_server, "Веб-сервер", "Linux VM / Docker, публичный сегмент") {
+        Container(nginx, "Nginx", "Reverse Proxy / Web Server", "Раздача Web App, HTTPS и маршрутизация API-запросов")
+    }
+
+    Deployment_Node(app_server, "Сервер приложений", "Linux VM / Docker, приватная сеть") {
+        Container(backend, "Backend", "Python / FastAPI", "Бизнес-логика и API")
+        Container(scheduler, "Scheduler", "Apache Airflow", "Плановые задачи")
+        Container(queue, "Queue", "RabbitMQ", "Брокер фоновых задач")
+    }
+
+    Deployment_Node(ml_server, "ML-сервер", "Linux VM / Docker, приватная сеть") {
+        Container(ml_service, "ML Service", "Python / XGBoost / ARIMA", "Прогнозирование и обучение моделей")
+    }
+
+    Deployment_Node(db_server, "Основной сервер данных", "Linux VM, приватная сеть") {
+        ContainerDb(db_main, "Основная БД", "PostgreSQL", "Пользователи, компании, настройки")
+        ContainerDb(dwh, "DWH", "TimescaleDB", "Исторические финансовые ряды")
+    }
+
+    Deployment_Node(replica_server, "Резервный сервер данных", "Linux VM, приватная сеть") {
+        ContainerDb(db_main_replica, "Реплика PostgreSQL", "PostgreSQL", "Резервный экземпляр основной БД")
+        ContainerDb(dwh_replica, "Реплика TimescaleDB", "TimescaleDB", "Резервный экземпляр хранилища временных рядов")
+    }
+}
+
+Rel(analyst, web_app, "Использует приложение", "UI")
+Rel(investor, mobile_app, "Использует приложение", "UI")
+
+Rel(web_app, nginx, "Запросы к API", "HTTPS / TLS, 443")
+Rel(mobile_app, nginx, "Запросы к API", "HTTPS / TLS, 443")
+
+Rel(nginx, backend, "Проксирование запросов", "HTTP / JSON, 8000")
+
+Rel(backend, ml_service, "Запрос прогнозов", "REST / HTTPS, 8443")
+
+Rel(backend, db_main, "Чтение и запись", "SQL / TCP + TLS, 5432")
+Rel(backend, dwh, "Аналитические запросы", "SQL / TCP + TLS, 5433")
+Rel(ml_service, dwh, "Исторические данные для ML", "SQL / TCP + TLS, 5433")
+
+Rel(scheduler, nginx, "Передача загруженных данных в Backend", "HTTPS / JSON, 443")
+Rel(scheduler, queue, "Публикация фоновых задач", "AMQPS / TLS, 5671")
+Rel(queue, ml_service, "Доставка заданий на обучение", "AMQPS / TLS, 5671")
+
+Rel(db_main, db_main_replica, "Репликация данных", "PostgreSQL WAL / TLS, 5432")
+Rel(dwh, dwh_replica, "Репликация временных рядов", "PostgreSQL WAL / TLS, 5433")
+
+@enduml
