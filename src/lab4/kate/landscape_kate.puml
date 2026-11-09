@@ -1,0 +1,38 @@
+@startuml "Kate landscape"
+!include <C4/C4_Context>
+LAYOUT_WITH_LEGEND()
+title L0 — Системный ландшафт Finance Forecast System 
+
+' Акторы
+Person(analyst, "Аналитик", "Работает через веб-интерфейс")
+Person(investor, "Инвестор", "Использует мобильное приложение")
+Person(risk_manager, "Риск-менеджер", "Работает через веб-интерфейс")
+Person(admin, "Администратор", "Управляет системой через веб-интерфейс")
+
+' Корпоративная граница
+Enterprise_Boundary(corp_boundary, "Корпоративная среда") {
+    System(finance_system, "Finance Forecast System", "Единая ИС для анализа и прогнозирования. Включает web_app, mobile_app, backend, ml_service, БД и инфраструктуру.")
+    
+    System_Ext(corp_iam, "Корпоративная IAM", "Проектируемая SSO (OpenID Connect)")
+    System_Ext(corp_bi, "Корпоративная BI", "Проектируемая платформа аналитики")
+}
+
+' Внешние системы за границей
+System_Ext(rfsd_dataset, "РСБУ (ИПП)", "Финансовая отчётность (Parquet)")
+System_Ext(cbr_api, "ЦБ РФ", "Макроэкономика (REST)")
+System_Ext(moex_api, "MOEX", "Котировки (REST)")
+
+' Связи акторов
+Rel(analyst, finance_system, "Анализирует данные через web_app", "HTTPS/443")
+Rel(investor, finance_system, "Смотрит прогнозы через mobile_app", "HTTPS/443")
+Rel(risk_manager, finance_system, "Проверяет модели через web_app", "HTTPS/443")
+Rel(admin, finance_system, "Управляет через web_app", "HTTPS/443")
+
+' Связи с внешними системами
+Rel(finance_system, corp_iam, "Аутентификация (план)", "OpenID Connect / HTTPS/443")
+Rel(finance_system, corp_bi, "Передача аналитики (план)", "REST/HTTPS/443")
+Rel(finance_system, rfsd_dataset, "Загружает отчётность", "HTTPS/File/443")
+Rel(finance_system, cbr_api, "Загружает макроэкономику", "REST/HTTPS/443")
+Rel(finance_system, moex_api, "Загружает котировки", "REST/HTTPS/443")
+
+@enduml

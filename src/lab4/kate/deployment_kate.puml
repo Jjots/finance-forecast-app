@@ -1,0 +1,39 @@
+@startuml "Kate deployment"
+!include <C4/C4_Deployment>
+LAYOUT_WITH_LEGEND()
+title Deployment — Локальное развертывание Web/Mobile 
+
+' 1. Устройство пользователя (браузер)
+Node(user_pc, "Устройство пользователя", "Windows/macOS") {
+    Container_Boundary(browser, "Браузер") {
+        Container(spa, "SPA React", "React + TypeScript", "Исполняется в браузере")
+    }
+}
+
+' 2. Устройство инвестора (мобилка)
+Node(investor_phone, "Устройство инвестора", "Android/iOS") {
+    Container(mobile_app, "Mobile App", "React Native", "Установлено локально")
+}
+
+' 3. Edge-узел (Nginx)
+Node(edge_vm, "Web/Reverse Proxy VM", "Linux VM + Docker") {
+    Container(nginx, "Nginx", "Nginx", "Раздает статику и проксирует API")
+}
+
+' 4. Application VM (Backend)
+Node(app_vm, "Application VM", "Linux VM + Docker") {
+    Container(backend, "Backend API", "FastAPI", "Порт 8000 (только внутренняя сеть)")
+}
+
+' Связи
+Rel(spa, nginx, "HTTPS / TLS 443", "HTTPS/443")
+Rel(mobile_app, nginx, "HTTPS / TLS 443", "HTTPS/443")
+Rel(nginx, backend, "HTTP/JSON / 8000", "HTTP/JSON/8000")
+
+note right of backend
+  Порт 8000 доступен только
+  во внутренней сети. 
+  Публично открыт только 443.
+end note
+
+@enduml

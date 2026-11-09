@@ -1,0 +1,39 @@
+@startuml "Kate dynamic"
+!include <C4/C4_Component>
+LAYOUT_WITH_LEGEND()
+title Dynamic — Получение прогноза 
+
+actor "Аналитик" as analyst
+
+' Компоненты внутри web_app (из твоего L3)
+Container_Boundary(web_app, "web_app (React)") {
+    Component(forecast_page, "Страница прогнозов", "React", "UI")
+    Component(forecast_controller, "Контроллер прогнозов", "TypeScript", "Application")
+    Component(forecast_service, "Сервис прогнозов", "TypeScript", "Domain")
+    Component(cache_repository, "Репозиторий кэша", "IndexedDB", "Data")
+    Component(api_repository, "Репозиторий API", "Axios", "Data")
+}
+
+' Внешние контейнеры
+Container(backend, "Backend API", "FastAPI", "Внешний контейнер")
+Container(ml_service, "ML-сервис", "Python", "Внешний контейнер (детали у Дианы)")
+
+' Сценарий (строго по шагам)
+Rel(analyst, forecast_page, "1. Выбирает компанию и горизонт", "UI action")
+Rel(forecast_page, forecast_controller, "2. Передаёт параметры", "JS call")
+Rel(forecast_controller, forecast_service, "3. Запрашивает прогноз", "JS call")
+Rel(forecast_service, cache_repository, "4. Проверяет кэш (устарел)", "JS call")
+Rel(forecast_service, api_repository, "5. Инициирует запрос на сервер", "JS call")
+Rel(api_repository, backend, "6. POST /forecast (JWT)", "HTTPS/JSON/443")
+Rel(backend, ml_service, "7. Запрос прогноза (детали у Дианы)", "REST/HTTPS/8443")
+Rel(backend, api_repository, "8. Возврат результата", "HTTPS/JSON/443")
+Rel(api_repository, forecast_service, "8. Передача данных", "JS call")
+Rel(forecast_service, cache_repository, "9. Сохраняет данные", "JS call")
+Rel(forecast_service, forecast_page, "10. Отрисовка графика", "JS call")
+
+note right of backend
+  Ответ возвращается в api_repository,
+  а не напрямую в forecast_page.
+end note
+
+@enduml
