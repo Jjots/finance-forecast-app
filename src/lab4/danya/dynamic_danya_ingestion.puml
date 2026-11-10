@@ -1,0 +1,42 @@
+@startuml dynamic_danya_ingestion
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Динамика 1: ежедневная загрузка данных (Scheduler -> Backend -> DWH), основной успешный путь
+
+System_Ext(rfsd_dataset, "РСБУ (ИПП)", "Финансовая отчётность, файл Parquet")
+System_Ext(cbr_api, "Банк России", "Макропоказатели")
+System_Ext(moex_api, "Московская биржа", "Котировки и индексы")
+
+Container_Boundary(scheduler, "Scheduler (Apache Airflow, один процесс)") {
+    Component(schedule_comp, "Schedule Component", "Airflow DAG", "Ежедневное расписание загрузки")
+    Component(ingest_comp, "Ingest Component", "Python", "Порядок источников, статусы, идемпотентный ключ задания")
+    Component(source_adapter_comp, "Source Adapter", "httpx", "Клиенты РСБУ, ЦБ РФ и MOEX")
+    Component(backend_client_comp, "Backend Client", "httpx", "HTTP-клиент к data_comp")
+}
+
+Container_Ext(nginx, "Nginx", "Reverse proxy", "Внутренний адрес API, TLS 443, проксирование на Backend 8000")
+
+Container_Boundary(backend, "Backend (Python + FastAPI, один процесс)") {
+    Component(data_comp, "Данные (data_comp)", "FastAPI router + service", "Валидация и нормализация батча")
+    Component(ts_repo_comp, "Репозиторий временных рядов", "SQLAlchemy / asyncpg", "Upsert и запросы к рядам")
+}
+
+ContainerDb_Ext(dwh, "DWH", "TimescaleDB", "Временные ряды финансовых показателей")
+
+Rel(schedule_comp, ingest_comp, "1. Наступило время ежедневной загрузки: запустить задание", "Python call / Airflow task")
+Rel(ingest_comp, source_adapter_comp, "2. Запросить данные по утверждённым источникам", "Python call")
+Rel(source_adapter_comp, rfsd_dataset, "3. Скачать файл отчётности Parquet", "HTTPS/File, 443")
+Rel(source_adapter_comp, cbr_api, "4. Получить макропоказатели", "REST/HTTPS, 443")
+Rel(source_adapter_comp, moex_api, "5. Получить котировки и индексы", "REST/HTTPS, 443")
+Rel(source_adapter_comp, ingest_comp, "6. Вернуть данные и статус каждого источника", "Python call")
+Rel(ingest_comp, backend_client_comp, "7. Передать батч с ключом идемпотентности", "Python call")
+Rel(backend_client_comp, nginx, "8. Отправить батч и статусы источников на внутренний адрес API", "HTTPS/JSON, 443")
+Rel(nginx, data_comp, "9. Проксировать запрос в Backend", "HTTP/JSON, 8000")
+Rel(data_comp, ts_repo_comp, "10. Проверить и нормализовать данные, передать на запись", "Python call")
+Rel(ts_repo_comp, dwh, "11. Upsert рядов (повтор не создаёт дубли)", "SQL/TCP + TLS, 5433")
+Rel(data_comp, nginx, "12. Вернуть статус загрузки в ответе на тот же запрос", "HTTP/JSON, 8000")
+Rel(nginx, backend_client_comp, "13. Доставить статус загрузки в Scheduler", "HTTPS/JSON, 443")
+
+@enduml

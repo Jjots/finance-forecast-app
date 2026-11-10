@@ -1,0 +1,36 @@
+@startuml landscape_danya
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Finance Forecast System - L0: системный ландшафт (участок Дани: источники данных)
+
+Person(analyst, "Аналитик", "Анализ показателей, прогнозы, отчёты")
+Person(investor, "Инвестор", "Просмотр прогнозов и сравнение компаний")
+Person(risk_manager, "Риск-менеджер", "Оценка волатильности и рисков")
+Person(admin, "Администратор", "Управление пользователями, ручная загрузка данных")
+
+System_Ext(rfsd_dataset, "РСБУ (ИПП)", "Финансовая отчётность 2011-2025, файл Parquet")
+System_Ext(cbr_api, "Банк России", "Ключевая ставка, курсы валют, макропоказатели")
+System_Ext(moex_api, "Московская биржа", "Котировки, индексы, торговая статистика")
+
+Enterprise_Boundary(enterprise, "Корпоративная среда (проектируемая)") {
+    System(finance_system, "Finance Forecast System", "Анализ и прогнозирование финансовых показателей. Внутренний планировщик по расписанию забирает данные у источников, а очередь доставляет фоновые задания")
+    System(corp_iam, "Корпоративная IAM / SSO", "Единая аутентификация. Проектируемая интеграция")
+    System(corp_bi, "Корпоративная BI-платформа", "Потребитель аналитики через API. Проектируемая интеграция")
+}
+
+Rel(analyst, finance_system, "Прогнозы, аналитика, отчёты", "HTTPS")
+Rel(investor, finance_system, "Прогнозы, сравнение компаний", "HTTPS")
+Rel(risk_manager, finance_system, "Волатильность, оценка рисков", "HTTPS")
+Rel(admin, finance_system, "Пользователи, ручная загрузка данных", "HTTPS")
+
+Rel(finance_system, rfsd_dataset, "Ежедневная загрузка финансовой отчётности (файл Parquet)", "HTTPS/File")
+Rel(finance_system, cbr_api, "Ежедневный запрос макропоказателей", "REST/HTTPS")
+Rel(finance_system, moex_api, "Ежедневный запрос котировок и индексов", "REST/HTTPS")
+
+Rel(finance_system, corp_iam, "Перенаправление на вход, проверка токенов (проектируется)", "OIDC / OAuth 2.0 / HTTPS")
+Rel(corp_iam, finance_system, "Токены с данными о пользователе (проектируется)", "OIDC / OAuth 2.0 / HTTPS")
+Rel(corp_bi, finance_system, "Запрос аналитических результатов (проектируется)", "REST/HTTPS")
+
+@enduml

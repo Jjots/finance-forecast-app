@@ -1,0 +1,55 @@
+@startuml dynamic_danya_retraining
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Динамика 2: еженедельное переобучение (Scheduler -> Queue -> ML Service), основной успешный путь
+
+Container_Boundary(scheduler, "Scheduler (Apache Airflow, один процесс)") {
+    Component(schedule_comp, "Schedule Component", "Airflow DAG", "Еженедельное расписание переобучения")
+    Component(broker_publisher_comp, "Broker Publisher", "aio-pika", "Публикация задания в RabbitMQ")
+}
+
+Container_Boundary(queue, "Queue (RabbitMQ, один процесс брокера)") {
+    Component(connection_comp, "Connection Component", "AMQP 0-9-1 + TLS", "Приём соединений и каналов")
+    Component(routing_comp, "Routing Component", "Direct exchange", "Маршрутизация по ключу ml.retrain")
+    Component(work_queue_comp, "Work Queue", "Durable queue", "Задания ml.retrain до ACK")
+    Component(retry_comp, "Retry Component", "TTL + DLQ", "Повторная доставка, затем dead-letter")
+}
+
+Container_Boundary(ml_service, "ML Service (Python, один процесс)") {
+    Component(task_consumer_comp, "Потребитель задач", "aio-pika", "Подключается к брокеру, получает задание, подтверждает")
+    Component(training_comp, "Training Component", "XGBoost, statsmodels (ARIMA)", "Обучение моделей")
+    Component(feature_engineer_comp, "Feature Engineer", "pandas", "Признаки: лаги, скользящие средние")
+    Component(normalizer_comp, "Normalizer", "pandas, scikit-learn", "Единая схема рядов")
+    Component(data_loader_comp, "Data Loader", "SQLAlchemy / asyncpg", "Чтение рядов из DWH")
+    Component(metrics_comp, "Metrics Component", "scikit-learn", "MAE, RMSE, MAPE")
+    Component(model_registry_comp, "Реестр моделей", "joblib", "Версии моделей и метрик")
+}
+
+ContainerDb_Ext(dwh, "DWH", "TimescaleDB", "История временных рядов")
+
+Rel(schedule_comp, broker_publisher_comp, "1. Наступил еженедельный срок: запустить публикацию задания", "Python call / Airflow task")
+Rel(broker_publisher_comp, connection_comp, "2. Опубликовать задание: job_id, модель, период", "AMQPS (TLS), 5671")
+Rel(connection_comp, routing_comp, "3. Передать сообщение на маршрутизацию", "Внутренние механизмы RabbitMQ")
+Rel(routing_comp, work_queue_comp, "4. Направить по ключу ml.retrain в рабочую очередь", "Внутренние механизмы RabbitMQ")
+Rel(task_consumer_comp, work_queue_comp, "5. Получить задание (consumer)", "AMQPS (TLS), 5671")
+Rel(task_consumer_comp, training_comp, "6. Запустить обучение", "Python call")
+Rel(training_comp, feature_engineer_comp, "7. Запросить обучающую выборку", "Python call")
+Rel(feature_engineer_comp, normalizer_comp, "8. Запросить нормализованные ряды", "Python call")
+Rel(normalizer_comp, data_loader_comp, "9. Запросить сырые ряды", "Python call")
+Rel(data_loader_comp, dwh, "10. Прочитать историю рядов", "SQL/TCP + TLS, 5433")
+Rel(training_comp, metrics_comp, "11. Оценить MAE, RMSE, MAPE на отложенном периоде", "Python call")
+Rel(training_comp, model_registry_comp, "12. Сохранить новую версию; активировать по правилам качества", "Python call")
+Rel(task_consumer_comp, work_queue_comp, "13. ACK", "AMQPS (TLS), 5671")
+
+Rel(work_queue_comp, retry_comp, "Альт. A1: NACK, сбой или TTL, задание в retry", "Внутренние механизмы RabbitMQ")
+Rel(retry_comp, routing_comp, "Альт. A2: повтор после паузы", "Внутренние механизмы RabbitMQ")
+
+note bottom of retry_comp
+  Альт. A3: после лимита попыток задание уходит в DLQ для разбора.
+  Проектный вариант: 3 попытки, backoff 2 и 4 с.
+  Это проектная логика брокера, а не настроенная конфигурация.
+end note
+
+@enduml

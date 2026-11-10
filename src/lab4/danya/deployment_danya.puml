@@ -1,0 +1,61 @@
+@startuml deployment_danya
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Deployment.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Развёртывание (проектируемое): Scheduler и Queue на сервере приложений
+
+System_Ext(rfsd_dataset, "РСБУ (ИПП)", "Файл Parquet")
+System_Ext(cbr_api, "Банк России", "REST API")
+System_Ext(moex_api, "Московская биржа", "REST API")
+
+Deployment_Node(web_vm, "Веб-узел (публичный сегмент, из интернета открыт только TCP 443)", "Linux VM / Docker") {
+    Container(nginx, "Nginx", "Reverse proxy, TLS", "Единственная публичная точка входа. Внутренний адрес API для Scheduler")
+}
+
+Deployment_Node(private_network, "Приватная сеть (нет доступа из интернета, TLS между сервисами)", "Внутренние адреса") {
+
+    Deployment_Node(app_vm, "Сервер приложений (Application VM)", "Linux VM") {
+        Deployment_Node(scheduler_env, "Среда scheduler", "Docker") {
+            Container(scheduler, "Scheduler", "Apache Airflow", "DAG ежедневной загрузки и еженедельного переобучения")
+        }
+        Deployment_Node(queue_env, "Среда queue", "Docker") {
+            Container(queue, "Queue", "RabbitMQ", "Брокер заданий. Порт управления наружу не открыт")
+            ContainerQueue(work_queue, "work_queue (durable)", "RabbitMQ queue", "Задания ml.retrain до ACK")
+            ContainerQueue(retry_dlq, "retry / DLQ (логическая)", "RabbitMQ TTL + DLX", "Повторная доставка, затем разбор после лимита попыток")
+        }
+        Deployment_Node(backend_env, "Среда backend (связанный сервис)", "Docker") {
+            Container(backend, "Backend", "Python + FastAPI", "Принимает батч в data_comp")
+        }
+    }
+
+    Deployment_Node(ml_vm, "ML-сервер (ML VM)", "Linux VM / Docker") {
+        Container(ml_service, "ML Service", "Python, XGBoost, ARIMA", "Consumer task_consumer_comp, обучение, чтение DWH через data_loader_comp")
+    }
+
+    Deployment_Node(db_vm, "Сервер данных", "Linux VM") {
+        ContainerDb(dwh, "DWH", "TimescaleDB", "Временные ряды. На хосте порт 5433")
+    }
+
+    Deployment_Node(replica_vm, "Сервер реплик (планируется)", "Linux VM") {
+        ContainerDb(dwh_replica, "Реплика DWH", "TimescaleDB", "Реплика, а не резервная копия. Автопереключение не реализовано")
+    }
+}
+
+Rel(scheduler, rfsd_dataset, "Скачать Parquet", "HTTPS/File, 443, исходящее")
+Rel(scheduler, cbr_api, "Макропоказатели", "REST/HTTPS, 443, исходящее")
+Rel(scheduler, moex_api, "Котировки", "REST/HTTPS, 443, исходящее")
+
+Rel(scheduler, nginx, "Батч данных и статусы источников", "HTTPS/JSON, 443")
+Rel(nginx, backend, "Проксирование на data_comp", "HTTP/JSON, 8000")
+Rel(backend, dwh, "Запись рядов (ts_repo_comp)", "SQL/TCP + TLS, 5433")
+
+Rel(scheduler, queue, "Публикация ml.retrain с аутентификацией", "AMQPS (AMQP 0-9-1 + TLS), 5671")
+Rel(ml_service, queue, "Consumer подключается, получает задания, ACK/NACK", "AMQPS, 5671")
+Rel(queue, work_queue, "Direct exchange, ключ ml.retrain", "Внутри брокера")
+Rel(work_queue, retry_dlq, "NACK или TTL: повтор, затем DLQ", "Внутри брокера")
+
+Rel(ml_service, dwh, "История рядов (data_loader_comp)", "SQL/TCP + TLS, 5433")
+Rel(dwh, dwh_replica, "Репликация рядов (проектируется)", "PostgreSQL WAL / TLS, 5433")
+
+@enduml
