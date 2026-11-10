@@ -1,0 +1,28 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/v2.12.0/C4_Deployment.puml
+title ЛР4 · Игорь · Приватный сегмент данных и реплики (проект)
+LAYOUT_WITH_LEGEND()
+Deployment_Node(igor_private, "Приватная сеть приложений и данных", "Firewall: только разрешённые узлы; SQL не опубликован в Интернет") {
+ Deployment_Node(igor_backend_vm, "Backend VM / узел приложений", "Linux VM / Docker") {
+  Container(backend, "backend", "Python / FastAPI", "db_repo_comp → db_main; ts_repo_comp → dwh; Airflow и RabbitMQ на этом узле вне локального фрагмента")
+ }
+ Deployment_Node(igor_ml_vm, "ML VM", "Linux VM / Docker") {
+  Container(ml_service, "ml_service", "Python / XGBoost / ARIMA", "data_loader_comp читает dwh; доступа к db_main нет")
+ }
+ Deployment_Node(igor_db_vm, "Database VM", "Linux VM / Docker; отдельные экземпляры БД") {
+  ContainerDb(db_main, "db_main · основной экземпляр", "PostgreSQL / Docker", "Пользователи, компании, настройки, метаданные моделей; host 5432 → container 5432; TLS")
+  ContainerDb(dwh, "dwh · основной экземпляр", "TimescaleDB / Docker", "Финансовые ряды; host 5433 → container 5432; TLS")
+ }
+}
+Deployment_Node(igor_replication_net, "Изолированная сеть репликации", "Только основные и резервные DB VM; без доступа клиентов") {
+ Deployment_Node(igor_standby_vm, "Резервный DB VM (проект)", "Linux VM / Docker") {
+  ContainerDb(db_main_replica, "Реплика db_main (проект)", "PostgreSQL / Docker", "Резервный экземпляр db_main; host 5432 → container 5432; не новый бизнес-контейнер")
+  ContainerDb(dwh_replica, "Реплика dwh (проект)", "TimescaleDB / Docker", "Резервный экземпляр dwh; host 5433 → container 5432; не новый бизнес-контейнер")
+ }
+}
+Rel(backend, db_main, "Профили, каталог, настройки, метаданные", "PostgreSQL SQL/TCP + TLS / host 5432 → container 5432")
+Rel(backend, dwh, "Чтение рядов и идемпотентная запись батчей", "PostgreSQL SQL/TCP + TLS / host 5433 → container 5432")
+Rel(ml_service, dwh, "Чтение истории для инференса и обучения", "PostgreSQL SQL/TCP + TLS / host 5433 → container 5432")
+Rel(db_main, db_main_replica, "Поток WAL основной БД по сети репликации (проект)", "PostgreSQL streaming / TCP + TLS / 5432")
+Rel(dwh, dwh_replica, "Поток WAL временных рядов по сети репликации (проект)", "PostgreSQL streaming / TCP + TLS / host 5433 → container 5432")
+@enduml

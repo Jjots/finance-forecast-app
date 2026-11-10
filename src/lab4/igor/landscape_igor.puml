@@ -1,0 +1,26 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/v2.12.0/C4_Context.puml
+title ЛР4 · Игорь · Системный ландшафт (проект)
+LAYOUT_WITH_LEGEND()
+Person(analyst, "Аналитик", "Анализ финансовых показателей")
+Person(investor, "Инвестор", "Просмотр прогнозов")
+Person(risk_manager, "Риск-менеджер", "Оценка рисков")
+Person(admin, "Администратор", "Управление доступом и данными")
+Enterprise_Boundary(igor_corporate, "Корпоративная среда (проект)") {
+ System(finance_system, "Finance Forecast System", "Анализ и прогнозирование; db_main и dwh являются внутренними средствами системы")
+ System(corp_iam, "Корпоративная IAM/SSO", "Проектируемая единая аутентификация")
+ System(corp_bi, "Корпоративная BI", "Проектируемый потребитель Backend API; без SQL-доступа")
+}
+System_Ext(rfsd_dataset, "РСБУ / ИПП", "Финансовая отчётность Parquet")
+System_Ext(cbr_api, "Банк России", "Курсы и макроэкономика")
+System_Ext(moex_api, "Московская биржа", "Котировки и индексы")
+Rel(analyst, finance_system, "Запрашивает аналитику", "HTTPS / 443")
+Rel(investor, finance_system, "Запрашивает прогнозы", "HTTPS / 443")
+Rel(risk_manager, finance_system, "Изучает риски", "HTTPS / 443")
+Rel(admin, finance_system, "Управляет доступом и загрузкой", "HTTPS / 443")
+Rel(finance_system, corp_iam, "SSO: авторизация и токены (проект)", "OpenID Connect / OAuth 2.0 / HTTPS 443")
+Rel(corp_bi, finance_system, "Запрашивает результаты через Backend API (проект)", "REST/HTTPS 443")
+Rel(finance_system, rfsd_dataset, "Scheduler загружает Parquet; запись через Backend", "HTTPS/File 443")
+Rel(finance_system, cbr_api, "Scheduler запрашивает макроданные; запись через Backend", "REST/HTTPS 443")
+Rel(finance_system, moex_api, "Scheduler запрашивает котировки; запись через Backend", "REST/HTTPS 443")
+@enduml
