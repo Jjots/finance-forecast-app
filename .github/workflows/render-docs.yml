@@ -26,10 +26,6 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Install Graphviz
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y graphviz
 
       - name: Download PlantUML
         run: |
@@ -69,9 +65,11 @@ jobs:
 
             mkdir -p "$output"
 
-            java -jar plantuml.jar -checkonly "$file"
-            java -jar plantuml.jar -tpng -o "$output" "$file"
-            java -jar plantuml.jar -tsvg -o "$output" "$file"
+
+            java -jar plantuml.jar -Playout=smetana -checkonly "$file"
+            java -jar plantuml.jar -Playout=smetana -tpng -o "$output" "$file"
+            java -jar plantuml.jar -Playout=smetana -tsvg -o "$output" "$file"
+
 
             count=$((count + 1))
           done < <(find src -type f -name '*.puml' -print0)
