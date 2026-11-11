@@ -60,7 +60,7 @@ Rel(ml_service, dwh, "Исторические данные для ML", "SQL / T
 
 Rel(scheduler, nginx, "Передача загруженных данных в Backend", "HTTPS / JSON, 443")
 Rel(scheduler, queue, "Публикация фоновых задач", "AMQPS / TLS, 5671")
-Rel(queue, ml_service, "Доставка заданий на обучение", "AMQPS / TLS, 5671")
+Rel(ml_service, queue, "Подключается как consumer, получает задания и отправляет ACK", "AMQPS / TLS, 5671")
 
 Rel(db_main, db_main_replica, "Репликация данных", "PostgreSQL WAL / TLS, 5432")
 Rel(dwh, dwh_replica, "Репликация временных рядов", "PostgreSQL WAL / TLS, 5433")
