@@ -1,0 +1,19 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/v2.12.0/C4_Component.puml
+title ЛР4 · Игорь · Успешное чтение временного ряда (проект)
+LAYOUT_WITH_LEGEND()
+Container_Boundary(backend, "backend · Python / FastAPI") {
+ Component(analytics_comp, "Analytics", "Python", "Запрос истории компании за период")
+ Component(ts_repo_comp, "Time Series Repository", "SQLAlchemy / asyncpg", "SQL-доступ к DWH")
+}
+Container_Boundary(dwh, "dwh · TimescaleDB") {
+ Component(dwh_query_comp, "Query", "SQL / TimescaleDB API", "Чтение финансовых рядов")
+ ComponentDb(dwh_hypertable_comp, "Hypertable", "TimescaleDB", "История временных наблюдений")
+}
+Rel(analytics_comp, ts_repo_comp, "1. Запрос истории: company_id, начало и конец периода", "Python call")
+Rel(ts_repo_comp, dwh_query_comp, "2. Параметризованный SELECT временного ряда", "PostgreSQL SQL/TCP + TLS · host 5433 → container 5432")
+Rel(dwh_query_comp, dwh_hypertable_comp, "3. Чтение наблюдений компании за период", "Внутренний SQL/Select TimescaleDB; без сети")
+Rel(dwh_hypertable_comp, dwh_query_comp, "4. Возврат выбранных наблюдений", "Внутренний SQL-результат TimescaleDB; без сети")
+Rel(dwh_query_comp, ts_repo_comp, "5. SQL-ответ: временные метки и значения", "PostgreSQL SQL/TCP + TLS · то же соединение 5433 → 5432")
+Rel(ts_repo_comp, analytics_comp, "6. Возврат истории для аналитики", "Python call / return")
+@enduml
