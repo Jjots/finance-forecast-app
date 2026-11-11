@@ -37,14 +37,21 @@ Deployment_Node(private_net, "Приватная сеть", "Закрыта от
         }
     }
 
-    Deployment_Node(db_vm, "Database VM", "Linux VM, закрытая сеть (зона Игоря)") {
+
+    Deployment_Node(db_vm, "Database VM", "Linux VM, приватная сеть") {
         Deployment_Node(db_docker, "Docker", "Среда контейнеров") {
             ContainerDb(db_main, "Основная БД", "PostgreSQL", "Метаданные, пользователи, сохранённые прогнозы. Порт 5432")
             ContainerDb(dwh, "Хранилище временных рядов", "TimescaleDB", "Финансовые ряды. Порт 5433 на хосте, 5432 внутри Docker-сети")
-            ContainerDb(db_main_replica, "Реплика db_main", "PostgreSQL", "Проектируемая реплика; не является резервной копией; автопереключение не реализовано")
-            ContainerDb(dwh_replica, "Реплика dwh", "TimescaleDB", "Проектируемая реплика; не является резервной копией; автопереключение не реализовано")
         }
     }
+
+    Deployment_Node(replica_vm, "Резервная Database VM", "Отдельная Linux VM, приватная сеть") {
+        Deployment_Node(replica_docker, "Docker", "Среда контейнеров") {
+            ContainerDb(db_main_replica, "Реплика db_main", "PostgreSQL", "Резервный экземпляр PostgreSQL. Автопереключение не реализовано")
+            ContainerDb(dwh_replica, "Реплика dwh", "TimescaleDB", "Резервный экземпляр TimescaleDB. Автопереключение не реализовано")
+        }
+    }
+
 }
 
 ' Входной трафик
