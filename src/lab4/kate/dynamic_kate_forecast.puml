@@ -25,11 +25,20 @@ Rel(forecast_controller, forecast_service, "3. Запрашивает прогн
 Rel(forecast_service, cache_repository, "4. Проверяет кэш (устарел)", "JS call")
 Rel(forecast_service, api_repository, "5. Инициирует запрос на сервер", "JS call")
 Rel(api_repository, backend, "6. POST /forecast (JWT)", "HTTPS/JSON/443")
-Rel(backend, ml_service, "7. Запрос прогноза (детали у Дианы)", "REST/HTTPS/8443")
-Rel(backend, api_repository, "8. Возврат результата", "HTTPS/JSON/443")
-Rel(api_repository, forecast_service, "8. Передача данных", "JS call")
-Rel(forecast_service, cache_repository, "9. Сохраняет данные", "JS call")
-Rel(forecast_service, forecast_page, "10. Отрисовка графика", "JS call")
+
+Rel(backend, ml_service, "7. Запрос прогноза", "REST/HTTPS, 8443")
+
+Rel(ml_service, backend, "8. Возвращает рассчитанный прогноз", "REST/HTTPS, 8443")
+
+Rel(backend, api_repository, "9. Возвращает результат", "HTTPS/JSON, 443")
+
+Rel(api_repository, forecast_service, "10. Передаёт полученные данные", "JS call")
+
+Rel(forecast_service, cache_repository, "11. Обновляет кэш прогноза", "JS call")
+
+Rel(forecast_service, forecast_controller, "12. Возвращает прогноз контроллеру", "JS call")
+
+Rel(forecast_controller, forecast_page, "13. Отображает график прогноза", "JS call")
 
 note right of backend
   Ответ возвращается в api_repository,

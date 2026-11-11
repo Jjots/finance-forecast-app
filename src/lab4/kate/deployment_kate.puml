@@ -6,7 +6,7 @@ title Deployment — Локальное развертывание Web/Mobile
 ' 1. Устройство пользователя (браузер)
 Node(user_pc, "Устройство пользователя", "Windows/macOS") {
     Container_Boundary(browser, "Браузер") {
-        Container(spa, "SPA React", "React + TypeScript", "Исполняется в браузере")
+        Container(web_app, "Web App", "React + TypeScript", "Исполняется в браузере")
     }
 }
 
@@ -26,7 +26,7 @@ Node(app_vm, "Application VM", "Linux VM + Docker") {
 }
 
 ' Связи
-Rel(spa, nginx, "HTTPS / TLS 443", "HTTPS/443")
+Rel(web_app, nginx, "Запросы к API", "HTTPS/TLS, 443")
 Rel(mobile_app, nginx, "HTTPS / TLS 443", "HTTPS/443")
 Rel(nginx, backend, "HTTP/JSON / 8000", "HTTP/JSON/8000")
 
