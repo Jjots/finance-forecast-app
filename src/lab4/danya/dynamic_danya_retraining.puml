@@ -39,9 +39,15 @@ Rel(training_comp, feature_engineer_comp, "7. Запросить обучающ�
 Rel(feature_engineer_comp, normalizer_comp, "8. Запросить нормализованные ряды", "Python call")
 Rel(normalizer_comp, data_loader_comp, "9. Запросить сырые ряды", "Python call")
 Rel(data_loader_comp, dwh, "10. Прочитать историю рядов", "SQL/TCP + TLS, 5433")
-Rel(training_comp, metrics_comp, "11. Оценить MAE, RMSE, MAPE на отложенном периоде", "Python call")
-Rel(training_comp, model_registry_comp, "12. Сохранить новую версию; активировать по правилам качества", "Python call")
-Rel(task_consumer_comp, work_queue_comp, "13. ACK", "AMQPS (TLS), 5671")
+
+Rel(dwh, data_loader_comp, "11. Возвращает исторические данные", "SQL/TCP + TLS, 5433")
+Rel(data_loader_comp, normalizer_comp, "12. Передаёт сырые ряды", "Python call")
+Rel(normalizer_comp, feature_engineer_comp, "13. Передаёт нормализованные данные", "Python call")
+Rel(feature_engineer_comp, training_comp, "14. Возвращает подготовленные признаки", "Python call")
+Rel(training_comp, metrics_comp, "15. Оценивает MAE, RMSE, MAPE на отложенном периоде", "Python call")
+Rel(training_comp, model_registry_comp, "16. Сохраняет новую версию и активирует по правилам качества", "Python call")
+Rel(task_consumer_comp, work_queue_comp, "17. Подтверждает успешную обработку ACK", "AMQPS / TLS, 5671")
+
 
 Rel(work_queue_comp, retry_comp, "Альт. A1: NACK, сбой или TTL, задание в retry", "Внутренние механизмы RabbitMQ")
 Rel(retry_comp, routing_comp, "Альт. A2: повтор после паузы", "Внутренние механизмы RabbitMQ")

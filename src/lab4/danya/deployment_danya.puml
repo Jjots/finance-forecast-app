@@ -19,11 +19,11 @@ Deployment_Node(private_network, "Приватная сеть (нет досту
         Deployment_Node(scheduler_env, "Среда scheduler", "Docker") {
             Container(scheduler, "Scheduler", "Apache Airflow", "DAG ежедневной загрузки и еженедельного переобучения")
         }
+
         Deployment_Node(queue_env, "Среда queue", "Docker") {
-            Container(queue, "Queue", "RabbitMQ", "Брокер заданий. Порт управления наружу не открыт")
-            ContainerQueue(work_queue, "work_queue (durable)", "RabbitMQ queue", "Задания ml.retrain до ACK")
-            ContainerQueue(retry_dlq, "retry / DLQ (логическая)", "RabbitMQ TTL + DLX", "Повторная доставка, затем разбор после лимита попыток")
+            Container(queue, "Queue", "RabbitMQ", "Брокер задач: exchange, work_queue, retry и DLQ. Порт управления наружу не открыт")
         }
+
         Deployment_Node(backend_env, "Среда backend (связанный сервис)", "Docker") {
             Container(backend, "Backend", "Python + FastAPI", "Принимает батч в data_comp")
         }
@@ -52,8 +52,6 @@ Rel(backend, dwh, "Запись рядов (ts_repo_comp)", "SQL/TCP + TLS, 5433
 
 Rel(scheduler, queue, "Публикация ml.retrain с аутентификацией", "AMQPS (AMQP 0-9-1 + TLS), 5671")
 Rel(ml_service, queue, "Consumer подключается, получает задания, ACK/NACK", "AMQPS, 5671")
-Rel(queue, work_queue, "Direct exchange, ключ ml.retrain", "Внутри брокера")
-Rel(work_queue, retry_dlq, "NACK или TTL: повтор, затем DLQ", "Внутри брокера")
 
 Rel(ml_service, dwh, "История рядов (data_loader_comp)", "SQL/TCP + TLS, 5433")
 Rel(dwh, dwh_replica, "Репликация рядов (проектируется)", "PostgreSQL WAL / TLS, 5433")
