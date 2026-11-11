@@ -1,0 +1,44 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Context.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Finance Forecast System — Системный ландшафт L0 (участок Дианы: backend и ml_service)
+
+' Роли пользователей: вне корпоративной границы
+Person(analyst, "Аналитик", "Запрашивает прогнозы и анализирует показатели компаний")
+Person(investor, "Инвестор", "Просматривает прогнозы и показатели компаний")
+Person(risk_manager, "Риск-менеджер", "Оценивает волатильность и риски")
+Person(admin, "Администратор", "Управляет пользователями, данными и моделями")
+
+' Корпоративная граница: целевая система и две проектируемые корпоративные системы
+Enterprise_Boundary(enterprise, "Корпоративная ИТ-среда (проектируемая)") {
+
+    System(finance_system, "Finance Forecast System", "Анализ и прогнозирование финансовых показателей российских компаний. Вклад участка Дианы: Backend API (FastAPI) и ML Service (XGBoost, ARIMA). Планируется: backend.auth_comp — точка интеграции с corp_iam (OIDC / HTTPS 443); backend.analytics_comp — API-доступ для corp_bi (REST / HTTPS 443). Методы и маршруты ещё не реализованы.")
+
+    System(corp_iam, "Корпоративная IAM / SSO", "Единая аутентификация пользователей. Проектируемая интеграция; внутренние JWT/RBAC в auth_comp сохраняются")
+
+    System(corp_bi, "Корпоративная BI-платформа", "Внешний потребитель аналитических результатов через API системы. Проектируемая интеграция; прямого доступа к db_main и dwh нет")
+}
+
+' Внешние источники данных: вне корпоративной границы
+System_Ext(rfsd_dataset, "РСБУ (ИПП)", "Финансовая отчётность компаний, файл Parquet")
+System_Ext(cbr_api, "Банк России", "Курсы валют и макроэкономические показатели")
+System_Ext(moex_api, "Московская биржа", "Котировки, индексы и рыночные показатели")
+
+' Пользователи -> система
+Rel(analyst, finance_system, "Запрашивает прогнозы и аналитику", "HTTPS / 443")
+Rel(investor, finance_system, "Просматривает прогнозы", "HTTPS / 443")
+Rel(risk_manager, finance_system, "Оценивает волатильность и риски", "HTTPS / 443")
+Rel(admin, finance_system, "Управляет пользователями, данными и моделями", "HTTPS / 443")
+
+' Проектируемые корпоративные интеграции
+Rel(finance_system, corp_iam, "Проектируется: проверка личности пользователей (SSO), обмен токенами через backend.auth_comp", "OpenID Connect / OAuth 2.0 поверх HTTPS / 443")
+Rel(corp_bi, finance_system, "Проектируется: запрос аналитических результатов и прогнозов через backend.analytics_comp", "REST / HTTPS / 443")
+
+' Источники данных (запрашивает scheduler, данные идут в backend.data_comp)
+Rel(finance_system, rfsd_dataset, "Загружает финансовую отчётность (Parquet)", "HTTPS / File / 443")
+Rel(finance_system, cbr_api, "Запрашивает курсы валют и макропоказатели", "REST / HTTPS / 443")
+Rel(finance_system, moex_api, "Запрашивает котировки и индексы", "REST / HTTPS / 443")
+
+@enduml

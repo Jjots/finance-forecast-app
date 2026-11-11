@@ -1,0 +1,73 @@
+@startuml
+!include https://raw.githubusercontent.com/plantuml-stdlib/C4-PlantUML/master/C4_Component.puml
+
+LAYOUT_WITH_LEGEND()
+
+title Dynamic: сквозной прогноз (кэш устарел, ML-сервис доступен, активная модель есть)
+
+' Клиент (детализирует Катя)
+Container_Boundary(web_app, "Веб-приложение (React + TypeScript)") {
+    Component(api_repository, "api_repository", "TypeScript", "Клиентский слой запросов к backend; после ответа web_app отображает график")
+}
+
+' Backend: компоненты L3
+Container_Boundary(backend, "Backend API (Python + FastAPI)") {
+    Component(forecast_comp, "Прогнозы", "FastAPI router + service", "Запрос прогноза, история и кэш прогнозов")
+    Component(ml_client_comp, "ML-клиент", "httpx", "Вызовы ML-сервиса: таймауты, повторы")
+    Component(db_repo_comp, "Репозитории основной БД", "SQLAlchemy", "Доступ к db_main")
+}
+
+' ML Service: компоненты L3
+Container_Boundary(ml_service, "ML Service (Python, XGBoost, ARIMA)") {
+    Component(api_comp, "ML API", "FastAPI", "Приём запросов от backend")
+    Component(inference_comp, "Inference Component", "XGBoost, statsmodels", "Построение прогноза активной моделью")
+    Component(feature_engineer_comp, "Feature Engineer", "pandas", "Построение признаков")
+    Component(normalizer_comp, "Normalizer", "pandas, scikit-learn", "Нормализация рядов")
+    Component(data_loader_comp, "Data Loader", "SQLAlchemy / asyncpg", "Чтение рядов из dwh")
+    Component(model_registry_comp, "Реестр моделей", "joblib, файловое хранилище", "Версии моделей, активная версия (не db_main и не dwh)")
+}
+
+ContainerDb_Ext(db_main, "Основная БД", "PostgreSQL", "Метаданные, сохранённые прогнозы и кэш результата")
+ContainerDb_Ext(dwh, "Хранилище временных рядов", "TimescaleDB", "Финансовые ряды")
+
+' 1-5: запрос и проверка сохранённого прогноза
+Rel(api_repository, forecast_comp, "1. Запрос прогноза: company_id, horizon, JWT (через Nginx, далее HTTP/JSON 8000 внутри сети)", "HTTPS/JSON, 443")
+Rel(forecast_comp, db_repo_comp, "2. Найти сохранённый прогноз и историю", "Python call")
+Rel(db_repo_comp, db_main, "3. SELECT сохранённого прогноза", "PostgreSQL SQL/TCP + TLS, 5432")
+Rel(db_main, db_repo_comp, "4. Свежего прогноза нет, кэш устарел", "PostgreSQL SQL/TCP + TLS, 5432")
+Rel(db_repo_comp, forecast_comp, "5. Результат: нужен новый расчёт", "Python call")
+
+' 6-7: вызов ML-сервиса
+Rel(forecast_comp, ml_client_comp, "6. Запросить прогноз", "Python call")
+Rel(ml_client_comp, api_comp, "7. Запрос прогноза (REST, не gRPC)", "REST/HTTPS, 8443")
+
+' 8-12: подготовка данных
+Rel(api_comp, inference_comp, "8. Запустить инференс", "Python call")
+Rel(inference_comp, feature_engineer_comp, "9. Запросить признаки", "Python call")
+Rel(feature_engineer_comp, normalizer_comp, "10. Запросить нормализованные ряды", "Python call")
+Rel(normalizer_comp, data_loader_comp, "11. Запросить сырые ряды", "Python call")
+Rel(data_loader_comp, dwh, "12. Прочитать историю финансовых рядов", "PostgreSQL SQL/TCP + TLS, 5433 на DB-хосте / 5432 в Docker-сети")
+
+' 13-16: возврат данных
+Rel(dwh, data_loader_comp, "13. Вернуть строки рядов", "PostgreSQL SQL/TCP + TLS, 5433 на DB-хосте / 5432 в Docker-сети")
+Rel(data_loader_comp, normalizer_comp, "14. Вернуть сырые ряды", "Python call")
+Rel(normalizer_comp, feature_engineer_comp, "15. Вернуть нормализованные ряды", "Python call")
+Rel(feature_engineer_comp, inference_comp, "16. Вернуть признаки", "Python call")
+
+' 17-18: активная модель
+Rel(inference_comp, model_registry_comp, "17. Получить активную модель", "Python call")
+Rel(model_registry_comp, inference_comp, "18. Вернуть активную модель и прогноз строится", "Python call")
+
+' 19-21: возврат прогноза
+Rel(inference_comp, api_comp, "19. Вернуть прогноз", "Python call")
+Rel(api_comp, ml_client_comp, "20. Ответ с прогнозом (JSON)", "REST/HTTPS, 8443")
+Rel(ml_client_comp, forecast_comp, "21. Вернуть прогноз", "Python call")
+
+' 22-23: сохранение результата
+Rel(forecast_comp, db_repo_comp, "22. Сохранить прогноз и кэш результата", "Python call")
+Rel(db_repo_comp, db_main, "23. INSERT / UPDATE результата", "PostgreSQL SQL/TCP + TLS, 5432")
+
+' 24: ответ клиенту
+Rel(forecast_comp, api_repository, "24. Вернуть JSON с прогнозом; web_app строит график (через Nginx)", "HTTPS/JSON, 443")
+
+@enduml
