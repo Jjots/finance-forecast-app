@@ -19,7 +19,7 @@ System_Boundary(finance_system, "Finance Forecast System") {
 
 Rel(scheduler, queue, "1. Публикует еженедельное задание на переобучение", "AMQPS / TLS, 5671")
 
-Rel(queue, ml_service, "2. Доставляет задание ml.retrain", "AMQPS / TLS, 5671")
+Rel(queue, ml_service, "2. Consumer получает задание ml.retrain", "AMQPS / TLS, 5671")
 
 Rel(ml_service, dwh, "3. Запрашивает исторические данные для обучения", "SQL / TCP + TLS, 5433")
 
