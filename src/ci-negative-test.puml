@@ -6,6 +6,6 @@ title Проверка автоматического обнаружения о�
 Container(web_app, "Веб-приложение", "React + TypeScript", "Тестовый компонент")
 Container(backend, "Backend", "Python + FastAPI", "Тестовый компонент")
 
-Rel_D(web_app, backend, "Тестовый запрос", "HTTPS/JSON")
+Rel(web_app, backend, "Тестовый запрос", "HTTPS/JSON")
 
 @enduml
