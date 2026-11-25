@@ -17,7 +17,7 @@ Deployment_Node(phone, "Смартфон", "Android / iOS") {
     Container(mobile_app, "Mobile App", "React Native", "Мобильное приложение")
 }
 
-Deployment_Node(cloud, "Облачная инфраструктура", "Linux VM / Docker") {
+Deployment_Node(cloud, "Корпоративная инфраструктура (On-Premise)", "Linux VM / Docker") {
 
     Deployment_Node(web_server, "Веб-сервер", "Linux VM / Docker, публичный сегмент") {
         Container(nginx, "Nginx", "Reverse Proxy / Web Server", "Раздача Web App, HTTPS и маршрутизация API-запросов")
