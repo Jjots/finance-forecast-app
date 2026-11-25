@@ -1,0 +1,220 @@
+@startuml
+' Логическая модель. Каждая сплошная линия соответствует одному SQL FK.
+hide circle
+hide methods
+<style>
+document {
+  FontName SansSerif
+}
+classDiagram {
+  class {
+    FontSize 17
+    RoundCorner 8
+    Shadowing 0
+  }
+  classBody {
+    FontSize 13
+  }
+  package {
+    FontSize 19
+  }
+}
+</style>
+title Finance Forecast System · логическая модель данных
+
+package "db_main   ·   PostgreSQL" as db_main #EFF6FE {
+  entity "roles" as roles {
+    role_code : text [PK]
+    role_name : text
+    --
+    CHECK role_code IN ('analyst','investor','risk_manager','admin')
+  }
+
+  entity "role_permissions" as role_permissions {
+    role_code : text [PK, FK]
+    permission_code : text [PK]
+    --
+    PK (role_code, permission_code)
+  }
+
+  entity "users" as users {
+    user_id : bigint [PK]
+    role_code : text [FK]
+    email : text
+    password_hash : text
+    is_active : boolean
+    created_at : timestamptz
+    --
+    UQ INDEX (lower(email))
+    IX (role_code)
+  }
+
+  entity "user_settings" as user_settings {
+    user_id : bigint [PK, FK]
+    default_horizon : smallint
+    notifications_enabled : boolean
+    --
+    CHECK default_horizon BETWEEN 1 AND 60
+  }
+
+  entity "companies" as companies {
+    company_id : bigint [PK]
+    inn : varchar(12) [UQ]
+    company_name : text
+    industry : text [NULL]
+    --
+    CHECK inn ~ '^([0-9]{10}|[0-9]{12})$'
+    IX (lower(company_name) text_pattern_ops)
+  }
+
+  entity "models" as models {
+    model_id : bigint [PK]
+    company_id : bigint [FK]
+    metric_code : text [LOG]
+    algorithm : text
+    step_unit : text
+    --
+    CHECK algorithm IN ('XGBoost', 'ARIMA')
+    CHECK step_unit IN ('day','month','quarter','year')
+    UQ (company_id, metric_code, step_unit, algorithm)
+  }
+
+  entity "model_versions" as model_versions {
+    model_id : bigint [PK, FK]
+    version_no : integer [PK]
+    trained_at : timestamptz
+    artifact_uri : text
+    is_active : boolean
+    mae : numeric [NULL]
+    rmse : numeric [NULL]
+    mape : numeric [NULL]
+    --
+    PK (model_id, version_no)
+    CHECK version_no > 0
+    CHECK mae >= 0 AND rmse >= 0 AND mape >= 0
+    UQ INDEX (model_id) WHERE is_active
+  }
+
+  entity "forecasts" as forecasts {
+    forecast_id : bigint [PK]
+    user_id : bigint [FK]
+    model_id : bigint [FK1]
+    version_no : integer [FK1]
+    as_of_date : date
+    horizon : smallint
+    created_at : timestamptz
+    --
+    FK1 (model_id, version_no) → model_versions
+    CHECK horizon BETWEEN 1 AND 60
+    IX (model_id, horizon, created_at DESC)
+    IX (user_id, created_at DESC)
+  }
+
+  entity "forecast_points" as forecast_points {
+    forecast_id : bigint [PK, FK]
+    target_date : date [PK]
+    predicted_value : numeric
+    --
+    PK (forecast_id, target_date)
+  }
+
+  entity "ingest_batches" as ingest_batches {
+    batch_id : uuid [PK]
+    source_code : text [LOG]
+    status : text
+    started_at : timestamptz
+    finished_at : timestamptz [NULL]
+    error_message : text [NULL]
+    --
+    CHECK status IN ('running','succeeded','failed')
+    CHECK (status = 'running') = (finished_at IS NULL)
+    CHECK finished_at >= started_at
+    IX (source_code, started_at DESC)
+  }
+}
+
+package "dwh   ·   TimescaleDB" as dwh #EFFAF5 {
+  entity "sources" as sources {
+    source_code : text [PK]
+    source_name : text
+    --
+    CHECK source_code IN ('rfsd_dataset','moex_api','cbr_api')
+  }
+
+  entity "metrics" as metrics {
+    metric_code : text [PK]
+    metric_name : text
+    unit : text
+  }
+
+  entity "series" as series {
+    series_id : bigint [PK]
+    source_code : text [FK]
+    metric_code : text [FK]
+    company_id : bigint [LOG, NULL]
+    family : text
+    grain : text
+    subject_key : text
+    source_series_key : text
+    --
+    CHECK family IN ('financial','market','macro')
+    CHECK family != 'financial' OR company_id IS NOT NULL
+    CHECK family != 'macro' OR company_id IS NULL
+    UQ (source_code, source_series_key)
+    UQ (series_id, family)
+    IX (company_id, metric_code, grain)
+  }
+
+  entity "dated_observations" as dated_observations {
+    series_id : bigint [PK, FK1]
+    family : text [FK1]
+    observed_on : date [PK, TIME]
+    period_start : date [NULL]
+    value : numeric
+    received_at : timestamptz
+    --
+    PK (series_id, observed_on)
+    FK1 (series_id, family) → series
+    CHECK family IN ('financial','macro')
+    CHECK period_start <= observed_on
+  }
+
+  entity "market_observations" as market_observations {
+    series_id : bigint [PK, FK1]
+    family : text [FK1]
+    observed_at : timestamptz [PK, TIME]
+    value : numeric
+    received_at : timestamptz
+    --
+    PK (series_id, observed_at)
+    FK1 (series_id, family) → series
+    CHECK family = 'market'
+  }
+}
+
+' Кардинальность у конца линии относится к данной стороне.
+roles ||--o{ role_permissions
+roles ||--o{ users
+users ||--o| user_settings
+users ||--o{ forecasts
+companies ||--o{ models
+models ||--o{ model_versions
+model_versions ||--o{ forecasts
+forecasts ||--|{ forecast_points
+sources ||--o{ series
+metrics ||--o{ series
+series ||--o{ dated_observations
+series ||--o{ market_observations
+
+' Только сопоставления Backend: независимые экземпляры СУБД.
+companies |o..o{ series : company_id
+metrics ||..o{ models : metric_code
+sources ||..o{ ingest_batches : source_code
+
+legend bottom
+  PK — первичный ключ · FK / FK1 — внешний / составной внешний ключ · UQ — уникальность · IX — B-tree
+  Все поля обязательны (NOT NULL), кроме отмеченных NULL. Для PK и UQ подразумеваются уникальные индексы.
+  TIME — единственная ось разбиения hypertable. LOG и пунктир обозначают проверку идентификатора приложением.
+  Концы линий: || ровно один    o| ноль или один    o{ ноль или много    |{ один или много
+endlegend
+@enduml
